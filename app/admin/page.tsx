@@ -281,12 +281,71 @@ function ProjectsTab() {
   );
 }
 
+interface Payment { id: string; amount: number; fee: number | null; net: number | null; currency: string; status: string; refunded: boolean; created: number; email: string | null; method: string | null }
+
 function PaymentsTab() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [totals, setTotals] = useState<{ gross: number; fee: number; net: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/payments", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { setPayments(j.payments ?? []); setTotals(j.totals ?? null); if (j.error) setErr(j.error); })
+      .catch(() => setErr("Couldn't load payments."))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Payments</h1>
-      <div className="bg-white border border-border rounded-card p-10 text-center text-muted">
-        No payments yet. Once Stripe is connected, every charge appears here with its status.
+      <h1 className="text-2xl font-semibold mb-1">Payments</h1>
+      <p className="text-muted text-sm mb-6">Live from Stripe — every charge, the fee Stripe took, and what actually landed.</p>
+
+      {totals && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <StatCard label="Collected (gross)" value={formatAUD(totals.gross)} />
+          <StatCard label="Stripe fees" value={`−${formatAUD(totals.fee)}`} />
+          <StatCard label="Net in the fund" value={formatAUD(totals.net)} />
+        </div>
+      )}
+
+      <div className="bg-white border border-border rounded-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-surface text-muted text-left">
+            <tr>
+              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Method</th>
+              <th className="px-4 py-3 font-medium text-right">Amount</th>
+              <th className="px-4 py-3 font-medium text-right">Fee</th>
+              <th className="px-4 py-3 font-medium text-right">Net</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {payments.map((p) => (
+              <tr key={p.id} className="hover:bg-surface/50">
+                <td className="px-4 py-3 tabular whitespace-nowrap">{new Date(p.created * 1000).toLocaleDateString()}</td>
+                <td className="px-4 py-3">{p.email || <span className="text-muted">—</span>}</td>
+                <td className="px-4 py-3 capitalize">{p.method?.replace("_", " ") || "—"}</td>
+                <td className="px-4 py-3 text-right tabular">{formatAUD(p.amount)}</td>
+                <td className="px-4 py-3 text-right tabular text-muted">{p.fee != null ? `−${formatAUD(p.fee)}` : "—"}</td>
+                <td className="px-4 py-3 text-right tabular font-medium">{p.net != null ? formatAUD(p.net) : "—"}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center gap-1.5 text-xs ${p.refunded ? "text-muted" : p.status === "succeeded" ? "text-success" : "text-danger"}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${p.refunded ? "bg-muted" : p.status === "succeeded" ? "bg-success" : "bg-danger"}`} />
+                    {p.refunded ? "Refunded" : p.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {!loading && payments.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">{err || "No payments yet. Real charges will appear here."}</td></tr>
+            )}
+            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Loading…</td></tr>}
+          </tbody>
+        </table>
       </div>
     </div>
   );
