@@ -509,8 +509,9 @@ function Step3() {
           <select
             value={s.dedicatedSuburb}
             onChange={(e) => s.set({ dedicatedSuburb: e.target.value })}
-            className="w-full h-12 px-4 rounded-xl border border-border bg-white focus:outline-none focus:border-accent"
+            className={`w-full h-12 px-4 rounded-xl border border-border bg-white focus:outline-none focus:border-accent ${s.dedicatedSuburb ? "text-ink" : "text-muted"}`}
           >
+            <option value="" disabled>Choose your suburb…</option>
             {SUBURBS.map((sb) => (
               <option key={sb.slug} value={sb.slug}>{sb.name}{sb.postcode ? ` · ${sb.postcode}` : ""}</option>
             ))}
@@ -566,7 +567,7 @@ function Step3() {
             {s.tier === "boosted" && <> · Boosted to {planMetaFor(s.plan).boostedLabel} — thank you for covering the fee</>}
           </div>
           <div>
-            Dedicated to: <strong className="text-ink">{getSuburb(s.dedicatedSuburb)?.name || s.dedicatedSuburb}</strong>
+            Dedicated to: <strong className="text-ink">{getSuburb(s.dedicatedSuburb)?.name || "—"}</strong>
           </div>
           <div className="text-xs">Each successful payment earns you 1 vote credit for that week.</div>
         </div>
@@ -575,8 +576,8 @@ function Step3() {
       {error && <div className="mt-4 text-sm text-danger">{error}</div>}
 
       <div className="mt-8">
-        <Button size="lg" className="w-full" onClick={goToCheckout} disabled={!s.email || busy}>
-          {busy ? "Redirecting…" : `Continue to checkout — ${cadence}`}
+        <Button size="lg" className="w-full" onClick={goToCheckout} disabled={!s.email || !s.dedicatedSuburb || busy}>
+          {busy ? "Redirecting…" : !s.dedicatedSuburb ? "Choose a suburb to continue" : `Continue to checkout — ${cadence}`}
         </Button>
         <p className="mt-3 text-xs text-muted flex items-center gap-1.5 justify-center">
           <Lock className="w-3 h-3" /> Secured by Stripe. Cancel anytime.

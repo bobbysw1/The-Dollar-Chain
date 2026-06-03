@@ -36,7 +36,7 @@ export const useJoinStore = create<JoinState>((set, get) => ({
   displayName: "",
   email: "",
   city: "",
-  dedicatedSuburb: "palm-beach",
+  dedicatedSuburb: "",
   notify: true,
   referredByCode: "",
   step: 1,
