@@ -13,7 +13,17 @@ import { CATEGORY_COLOURS, ALL_CATEGORIES } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [members, stats] = await Promise.all([listPublicMembers(), getPublicStats()]);
+  // Never let a transient database hiccup turn the homepage into an error page.
+  // If the read fails (e.g. a cold-start blip), render with safe fallbacks.
+  let members: Awaited<ReturnType<typeof listPublicMembers>> = [];
+  let stats: Awaited<ReturnType<typeof getPublicStats>> = {
+    total: 1, active: 1, nextNumber: 2, contributedCents: 0, suburbsBacked: 0,
+  };
+  try {
+    [members, stats] = await Promise.all([listPublicMembers(), getPublicStats()]);
+  } catch (e) {
+    console.error("Homepage data load failed — rendering fallback", e);
+  }
   const raisedCents = stats.contributedCents;
   return (
     <main className="relative min-h-screen">

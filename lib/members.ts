@@ -143,11 +143,16 @@ function toPublic(m: MemberRecord): PublicMember {
   };
 }
 
+/** Once we've confirmed the founder exists in this server instance, skip the
+ *  whole lock+read on every subsequent call (it only ever needs doing once). */
+let founderEnsured = false;
+
 /** Seed the founder, #1, so the chain always has at least one link. */
 export async function ensureFounder(): Promise<void> {
+  if (founderEnsured) return;
   await withLock(FILE, async () => {
     const file = await load();
-    if (file.byNumber["1"]) return;
+    if (file.byNumber["1"]) { founderEnsured = true; return; }
     const referralCode = makeReferralCode(file.byReferralCode);
     const founder: MemberRecord = {
       number: 1,
@@ -171,6 +176,7 @@ export async function ensureFounder(): Promise<void> {
     file.byReferralCode[referralCode] = 1;
     if (file.nextNumber < 2) file.nextNumber = 2;
     await writeJSON(FILE, file);
+    founderEnsured = true;
   });
 }
 
