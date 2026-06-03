@@ -99,21 +99,31 @@ function Step1() {
       <Step n="1" title="How would you like to pay?">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <MethodCard
-            icon={<CreditCard className="w-4 h-4" />}
-            title="Card"
-            sub="Visa / Mastercard / Amex — instant"
-            fee="Most common"
-            selected={paymentMethod === "card"}
-            onClick={() => set({ paymentMethod: "card" })}
-          />
-          <MethodCard
             icon={<Building2 className="w-4 h-4" />}
-            title="Bank (BECS Direct Debit)"
-            sub="Straight from your AU bank — lower fees"
-            fee="Cheaper for the cause"
+            title="Bank (Direct Debit)"
+            sub="Straight from your AU bank account"
+            fee="Cheapest — more reaches the cause"
+            feeTone="good"
+            recommended
             selected={paymentMethod === "becs"}
             onClick={() => set({ paymentMethod: "becs" })}
           />
+          <MethodCard
+            icon={<CreditCard className="w-4 h-4" />}
+            title="Card"
+            sub="Visa / Mastercard / Amex — instant"
+            fee="Easy, but costs the cause a little more"
+            selected={paymentMethod === "card"}
+            onClick={() => set({ paymentMethod: "card" })}
+          />
+        </div>
+        <div className="mt-3 flex items-start gap-2 text-xs text-muted p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
+          <Building2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-accent" />
+          <span>
+            <strong className="text-ink">Direct debit is the kindest way to give.</strong> Banks charge us far
+            less than card networks do, so more of every dollar reaches the people who need it — it just takes a
+            few days to set up the first time. Cards are instant if you&apos;d rather.
+          </span>
         </div>
       </Step>
 
@@ -339,18 +349,23 @@ function TierCard({ title, sub, footer, selected, onClick, highlight }: {
   );
 }
 
-function MethodCard({ icon, title, sub, fee, selected, onClick }: {
+function MethodCard({ icon, title, sub, fee, selected, onClick, recommended, feeTone }: {
   icon: React.ReactNode; title: string; sub: string; fee: string;
-  selected: boolean; onClick: () => void;
+  selected: boolean; onClick: () => void; recommended?: boolean; feeTone?: "good" | "muted";
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`text-left p-4 rounded-card border transition-all ${
-        selected ? "border-accent ring-2 ring-accent/20" : "border-border hover:border-ink/30"
+      className={`relative text-left p-4 rounded-card border transition-all ${
+        selected ? "border-accent ring-2 ring-accent/20" : recommended ? "border-accent/50" : "border-border hover:border-ink/30"
       }`}
     >
+      {recommended && (
+        <span className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-accent text-white text-[10px] font-semibold uppercase tracking-wide">
+          Recommended
+        </span>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 font-medium">
           <span className="text-accent">{icon}</span>{title}
@@ -362,7 +377,7 @@ function MethodCard({ icon, title, sub, fee, selected, onClick }: {
         )}
       </div>
       <p className="text-xs text-muted mt-1">{sub}</p>
-      <div className="text-xs font-mono tabular text-muted mt-2">{fee}</div>
+      <div className={`text-xs font-medium mt-2 ${feeTone === "good" ? "text-accent" : "text-muted"}`}>{fee}</div>
     </button>
   );
 }

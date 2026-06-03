@@ -30,7 +30,7 @@ const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.lengt
 
 export const useJoinStore = create<JoinState>((set, get) => ({
   plan: "monthly",
-  paymentMethod: "card",
+  paymentMethod: "becs",
   tier: "boosted",
   customWeeklyCents: 0,
   displayName: "",
