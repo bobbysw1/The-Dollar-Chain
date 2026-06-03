@@ -2,10 +2,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, FolderKanban, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, FolderKanban, LogOut, Image as ImageIcon, Check, X } from "lucide-react";
 import { formatAUD } from "@/lib/data";
+import { PHOTO_PLACEMENT_LABELS, type PhotoPlacement } from "@/lib/types";
 
-type Tab = "overview" | "members" | "projects" | "payments";
+type Tab = "overview" | "members" | "photos" | "projects" | "payments";
+
+interface PendingPhoto { number: number; displayName?: string; photoUrl: string; photoPlacement?: PhotoPlacement; joinedAt: string }
 
 interface Stats { totalMembers: number; activeMembers: number; raisedCents: number; balanceCents: number; deployedCents: number; peopleHelped: number; suburbsBacked: number }
 interface Member { number: number; displayName?: string; dedicatedSuburb?: string; isActive: boolean; plan: string; contributedCents: number; joinedAt: string }
@@ -14,11 +17,16 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<Stats | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
   const router = useRouter();
+
+  const loadPending = () =>
+    fetch("/api/admin/photos", { cache: "no-store" }).then((r) => r.json()).then((j) => setPending(j.pending ?? [])).catch(() => {});
 
   useEffect(() => {
     fetch("/api/stats", { cache: "no-store" }).then((r) => r.json()).then(setStats).catch(() => {});
     fetch("/api/chain", { cache: "no-store" }).then((r) => r.json()).then((j) => setMembers(j.members ?? [])).catch(() => {});
+    loadPending();
   }, []);
 
   const signOut = async () => {
@@ -35,6 +43,7 @@ export default function AdminPage() {
           <nav className="space-y-1 text-sm">
             <NavItem icon={<LayoutDashboard className="w-4 h-4" />} active={tab === "overview"} onClick={() => setTab("overview")}>Overview</NavItem>
             <NavItem icon={<Users className="w-4 h-4" />} active={tab === "members"} onClick={() => setTab("members")}>Members</NavItem>
+            <NavItem icon={<ImageIcon className="w-4 h-4" />} active={tab === "photos"} onClick={() => setTab("photos")} badge={pending.length || undefined}>Photos</NavItem>
             <NavItem icon={<FolderKanban className="w-4 h-4" />} active={tab === "projects"} onClick={() => setTab("projects")}>Projects</NavItem>
             <NavItem icon={<CreditCard className="w-4 h-4" />} active={tab === "payments"} onClick={() => setTab("payments")}>Payments</NavItem>
           </nav>
@@ -46,6 +55,7 @@ export default function AdminPage() {
         <section className="flex-1 p-8">
           {tab === "overview" && <Overview stats={stats} members={members} />}
           {tab === "members" && <MembersTab members={members} />}
+          {tab === "photos" && <PhotosTab pending={pending} reload={loadPending} />}
           {tab === "projects" && <ProjectsTab />}
           {tab === "payments" && <PaymentsTab />}
         </section>
@@ -54,12 +64,70 @@ export default function AdminPage() {
   );
 }
 
-function NavItem({ icon, children, active, onClick }: { icon: React.ReactNode; children: React.ReactNode; active?: boolean; onClick: () => void }) {
+function NavItem({ icon, children, active, onClick, badge }: { icon: React.ReactNode; children: React.ReactNode; active?: boolean; onClick: () => void; badge?: number }) {
   return (
     <button onClick={onClick}
       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left ${active ? "bg-surface text-ink font-medium" : "text-muted hover:bg-surface hover:text-ink"}`}>
-      {icon}{children}
+      {icon}<span className="flex-1">{children}</span>
+      {badge ? <span className="inline-grid place-items-center min-w-5 h-5 px-1.5 rounded-full bg-accent text-white text-[11px] font-semibold tabular">{badge}</span> : null}
     </button>
+  );
+}
+
+function PhotosTab({ pending, reload }: { pending: PendingPhoto[]; reload: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState<number | null>(null);
+
+  const act = async (number: number, action: "approve" | "reject") => {
+    setBusy(number);
+    try {
+      await fetch("/api/admin/photos", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ number, action }),
+      });
+      await reload();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold mb-1">Photos to review</h1>
+      <p className="text-muted text-sm mb-6">Uploaded photos stay hidden until you approve them. Approve to publish on the chain, or reject to remove.</p>
+      {pending.length === 0 ? (
+        <div className="bg-white border border-border rounded-card p-10 text-center text-muted">
+          Nothing waiting — you&apos;re all caught up. 🎉
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {pending.map((p) => (
+            <div key={p.number} className="bg-white border border-border rounded-card overflow-hidden">
+              <div className="aspect-square bg-surface grid place-items-center overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.photoUrl} alt={`Pending photo for #${p.number}`} className="w-full h-full object-contain" />
+              </div>
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-mono tabular text-sm">#{p.number}</div>
+                  <div className="text-xs text-muted">{p.photoPlacement ? PHOTO_PLACEMENT_LABELS[p.photoPlacement] : "Full body"}</div>
+                </div>
+                {p.displayName && <div className="text-sm mt-0.5 truncate">{p.displayName}</div>}
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => act(p.number, "approve")} disabled={busy === p.number}
+                    className="flex-1 h-9 rounded-lg bg-accent text-white text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:bg-emerald-700 disabled:opacity-60">
+                    <Check className="w-4 h-4" /> Approve
+                  </button>
+                  <button onClick={() => act(p.number, "reject")} disabled={busy === p.number}
+                    className="flex-1 h-9 rounded-lg border border-border text-sm text-ink inline-flex items-center justify-center gap-1.5 hover:border-danger hover:text-danger disabled:opacity-60">
+                    <X className="w-4 h-4" /> Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

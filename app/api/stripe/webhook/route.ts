@@ -45,10 +45,11 @@ export async function POST(req: NextRequest) {
         if (!customerId) break;
         const member = await getMemberByCustomerId(customerId);
         if (!member) break;
-        // 1 credit per successful payment. Event id keeps it idempotent.
-        await grantCredit(member.number, event.id);
-        // Track lifetime contribution (amount actually paid, in cents) and keep them active.
+        // Credits = dollars donated this payment ($4/month → 4, $52/year → 52).
+        // Event id keeps it idempotent.
         const paid = inv.amount_paid ?? 0;
+        await grantCredit(member.number, event.id, Math.floor(paid / 100));
+        // Track lifetime contribution (amount actually paid, in cents) and keep them active.
         await updateMember(member.number, {
           contributedCents: member.contributedCents + paid,
           active: true,

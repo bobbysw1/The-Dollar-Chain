@@ -390,15 +390,24 @@ function SettingsSection({ member, onChange }: { member: Member; onChange: () =>
 function SubscriptionSection({ member }: { member: Member }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [showRetention, setShowRetention] = useState(false);
   const plan = (() => { try { return planMetaFor(member.plan as never).label; } catch { return member.plan; } })();
 
+  // Opens Stripe's portal in a NEW TAB so the member keeps this page open.
   const openPortal = async () => {
     setBusy(true); setErr(null);
+    // Open the tab synchronously (before the await) so the browser doesn't block it as a popup.
+    const tab = window.open("", "_blank");
     const r = await fetch("/api/billing/portal", { method: "POST" });
     const j = await r.json();
     setBusy(false);
-    if (!r.ok || !j.url) { setErr(j.error === "no_customer" ? "No billing record yet (dev account)." : j.error || "Billing isn't set up yet."); return; }
-    window.location.href = j.url;
+    if (!r.ok || !j.url) {
+      tab?.close();
+      setErr(j.error === "no_customer" ? "No billing record yet (dev account)." : j.error || "Billing isn't set up yet.");
+      return;
+    }
+    if (tab) tab.location.href = j.url; else window.open(j.url, "_blank");
+    setShowRetention(false);
   };
 
   return (
@@ -408,16 +417,65 @@ function SubscriptionSection({ member }: { member: Member }) {
           <div className="font-medium">{plan}</div>
           <div className="text-xs text-muted">Card saved securely with Stripe · renews automatically</div>
         </div>
-        <Button variant="secondary" onClick={openPortal} disabled={busy}>
-          {busy ? "Opening…" : "Manage / cancel"}
+        <Button variant="secondary" onClick={() => { setErr(null); setShowRetention(true); }} disabled={busy}>
+          Manage / cancel
         </Button>
       </div>
       {err && <p className="mt-2 text-xs text-muted">{err}</p>}
       <p className="mt-3 text-xs text-muted">
         Update your card, switch payment method, download invoices, or cancel any time —
-        all handled securely in Stripe's portal. Cancel and you keep your number — you simply become the latest link in the chain.
+        all handled securely in Stripe's portal (opens in a new tab). Cancel and you keep your number — you simply become the latest link in the chain.
       </p>
+
+      {showRetention && (
+        <RetentionModal
+          member={member}
+          busy={busy}
+          onClose={() => setShowRetention(false)}
+          onContinue={openPortal}
+        />
+      )}
     </Section>
+  );
+}
+
+function RetentionModal({ member, busy, onClose, onContinue }: {
+  member: Member; busy: boolean; onClose: () => void; onContinue: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-card shadow-soft w-full max-w-md overflow-hidden">
+        <div className="px-6 pt-7 pb-5 text-center">
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-50 text-accent grid place-items-center mb-4">
+            <Heart className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-semibold tracking-tight">Before you go, #{member.number}…</h3>
+          <p className="mt-3 text-sm text-muted leading-relaxed">
+            Your dollar isn&apos;t just a dollar. It&apos;s a kid getting to the comp, a family
+            keeping the lights on, a rough night turned into a warm bed — chosen by people
+            like you, every single week.
+          </p>
+          <p className="mt-3 text-sm text-ink font-medium leading-relaxed">
+            &ldquo;With you in the chain, we can actually change things around here.
+            Stay with us — even a dollar keeps it going.&rdquo;
+          </p>
+          <p className="mt-1 text-xs text-muted">— everyone your $1 has helped</p>
+        </div>
+        <div className="px-6 pb-6 space-y-2">
+          <Button className="w-full" onClick={onClose}>Keep my number — I&apos;m staying</Button>
+          <button
+            onClick={onContinue}
+            disabled={busy}
+            className="w-full h-10 rounded-xl text-sm text-muted hover:text-ink hover:bg-surface transition-colors disabled:opacity-60"
+          >
+            {busy ? "Opening…" : "Continue to manage or cancel"}
+          </button>
+          <p className="text-center text-[11px] text-muted pt-1">
+            Opens Stripe&apos;s secure portal in a new tab. You keep your number either way.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

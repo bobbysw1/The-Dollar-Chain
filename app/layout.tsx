@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${jakarta.variable}`}>
-      <body className="font-sans text-ink bg-cream antialiased">{children}</body>
+      <body className="font-sans text-ink bg-cream antialiased"><ScrollToTop />{children}</body>
     </html>
   );
 }

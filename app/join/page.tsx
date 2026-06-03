@@ -12,7 +12,7 @@ import { useJoinStore } from "@/store/joinStore";
 import { PLANS, planMetaFor, feeFor, feeForAmount, keepPct, chargeFor, planHasBoost, type Plan, type PaymentMethod, type Tier } from "@/lib/types";
 import { formatAUD } from "@/lib/data";
 import { SUBURBS, getSuburb } from "@/lib/suburbs";
-import { CreditCard, Building2, Sparkles, MapPin } from "lucide-react";
+import { CreditCard, Building2, Sparkles, MapPin, RefreshCw } from "lucide-react";
 
 export default function JoinPage() {
   const s = useJoinStore();
@@ -558,6 +558,10 @@ function Step3() {
         </label>
 
         <div className="mt-2 p-5 rounded-xl border border-border bg-surface text-sm text-muted space-y-2">
+          <div className="flex items-start gap-2 text-ink font-medium">
+            <RefreshCw className="w-4 h-4 mt-0.5 shrink-0 text-accent" />
+            <span>This is a recurring donation — you'll be charged <strong>{cadence}</strong>, automatically, until you cancel. Cancel anytime in your account, no fuss.</span>
+          </div>
           <div>
             You'll be redirected to Stripe to enter your{" "}
             <strong className="text-ink">{s.paymentMethod === "card" ? "card" : "bank (BECS Direct Debit)"}</strong> details securely.
@@ -569,7 +573,7 @@ function Step3() {
           <div>
             Dedicated to: <strong className="text-ink">{getSuburb(s.dedicatedSuburb)?.name || "—"}</strong>
           </div>
-          <div className="text-xs">Each successful payment earns you 1 vote credit for that week.</div>
+          <div className="text-xs">Each payment earns vote credits equal to the dollars you give — ${planMetaFor(s.plan).chargeCents / 100} = {Math.floor(planMetaFor(s.plan).chargeCents / 100)} credit{Math.floor(planMetaFor(s.plan).chargeCents / 100) === 1 ? "" : "s"}.</div>
         </div>
       </div>
 

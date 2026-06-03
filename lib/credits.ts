@@ -40,14 +40,18 @@ export async function getCredits(memberNumber: number): Promise<number> {
   return file.balances[String(memberNumber)] ?? 0;
 }
 
-export async function grantCredit(memberNumber: number, eventId: string): Promise<{ granted: boolean; balance: number }> {
+/** Grant vote credits for a successful payment. `credits` should equal the
+ *  dollars donated (e.g. $4/month = 4 credits, $52/year = 52). Idempotent per
+ *  Stripe event id. */
+export async function grantCredit(memberNumber: number, eventId: string, credits = 1): Promise<{ granted: boolean; balance: number }> {
+  const add = Math.max(1, Math.floor(credits));
   return withLock(FILE, async () => {
     const file = await load();
     if (file.processedEvents.includes(eventId)) {
       return { granted: false, balance: file.balances[String(memberNumber)] ?? 0 };
     }
     const key = String(memberNumber);
-    file.balances[key] = (file.balances[key] ?? 0) + 1;
+    file.balances[key] = (file.balances[key] ?? 0) + add;
     file.processedEvents.push(eventId);
     await writeJSON(FILE, file);
     return { granted: true, balance: file.balances[key] };

@@ -211,6 +211,48 @@ export async function listPublicMembers(): Promise<PublicMember[]> {
   return Object.values(file.byNumber).sort((a, b) => a.number - b.number).map(toPublic);
 }
 
+export interface PendingPhoto {
+  number: number;
+  displayName?: string;
+  photoUrl: string;
+  photoPlacement?: PersonAppearance["photoPlacement"];
+  joinedAt: string;
+}
+
+/** Photos awaiting human moderation (uploaded but not yet approved). */
+export async function listPendingPhotos(): Promise<PendingPhoto[]> {
+  const file = await load();
+  return Object.values(file.byNumber)
+    .filter((m) => m.avatar?.photoUrl && m.avatar?.photoStatus === "pending")
+    .sort((a, b) => a.number - b.number)
+    .map((m) => ({
+      number: m.number,
+      displayName: m.displayName,
+      photoUrl: m.avatar.photoUrl!,
+      photoPlacement: m.avatar.photoPlacement,
+      joinedAt: m.joinedAt,
+    }));
+}
+
+/** Approve a pending photo (it goes live), or reject it (photo removed). */
+export async function setPhotoApproval(number: number, approve: boolean): Promise<boolean> {
+  return withLock(FILE, async () => {
+    const file = await load();
+    const m = file.byNumber[String(number)];
+    if (!m || !m.avatar?.photoUrl) return false;
+    if (approve) {
+      m.avatar.photoStatus = "approved";
+    } else {
+      delete m.avatar.photoUrl;
+      delete m.avatar.photoStatus;
+      delete m.avatar.photoPlacement;
+      delete m.avatar.photoShape;
+    }
+    await writeJSON(FILE, file);
+    return true;
+  });
+}
+
 export async function getPublicStats() {
   await ensureFounder();
   const file = await load();
