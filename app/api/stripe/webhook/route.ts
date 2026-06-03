@@ -1,0 +1,81 @@
+import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { stripe } from "@/lib/stripe";
+import { getMemberByCustomerId, upsertMemberFromCheckout, updateMember, setMemberActive } from "@/lib/members";
+import { grantCredit } from "@/lib/credits";
+import type { Plan } from "@/lib/types";
+
+export const runtime = "nodejs";
+// Stripe requires the raw request body for signature verification.
+export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ error: "Webhook secret not configured" }, { status: 503 });
+
+  const sig = req.headers.get("stripe-signature");
+  if (!sig) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+
+  const body = await req.text();
+  let event: Stripe.Event;
+  try {
+    event = stripe().webhooks.constructEvent(body, sig, secret);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Invalid signature";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const s = event.data.object as Stripe.Checkout.Session;
+        const customerId = typeof s.customer === "string" ? s.customer : s.customer?.id;
+        const subscriptionId = typeof s.subscription === "string" ? s.subscription : s.subscription?.id;
+        const email = s.customer_details?.email || s.customer_email;
+        const plan = (s.metadata?.plan as Plan) || "weekly";
+        if (customerId && subscriptionId && email) {
+          await upsertMemberFromCheckout({ email, plan, stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const inv = event.data.object as Stripe.Invoice;
+        const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+        if (!customerId) break;
+        const member = await getMemberByCustomerId(customerId);
+        if (!member) break;
+        // 1 credit per successful payment. Event id keeps it idempotent.
+        await grantCredit(member.number, event.id);
+        // Track lifetime contribution (amount actually paid, in cents) and keep them active.
+        const paid = inv.amount_paid ?? 0;
+        await updateMember(member.number, {
+          contributedCents: member.contributedCents + paid,
+          active: true,
+        });
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const inv = event.data.object as Stripe.Invoice;
+        const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+        if (customerId) await setMemberActive(customerId, false);
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+        if (customerId) await setMemberActive(customerId, false);
+        break;
+      }
+      case "customer.subscription.updated":
+        break;
+    }
+  } catch (err) {
+    console.error("Webhook handler error", err);
+    return NextResponse.json({ error: "handler_error" }, { status: 500 });
+  }
+
+  return NextResponse.json({ received: true });
+}
