@@ -15,6 +15,8 @@ export function CustomiseYourPerson() {
     accessories: s.accessories,
     photoUrl: s.photoUrl || undefined,
     photoStatus: s.photoUrl ? "pending" : undefined,
+    photoPlacement: s.photoPlacement,
+    photoShape: s.photoShape,
   };
 
   return (
