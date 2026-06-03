@@ -11,7 +11,9 @@ export async function GET() {
     totalMembers: stats.total,
     activeMembers: stats.active,
     nextNumber: stats.nextNumber,
-    raisedCents: stats.contributedCents,           // what members have put in so far
+    donatedCents: stats.donatedCents,              // gross — what members actually paid
+    feeCents: stats.feeCents,                       // Stripe's total cut
+    raisedCents: stats.contributedCents,           // NET — what's really in the fund after fees
     deployedCents,                                 // paid out to causes (0 until we fund)
     balanceCents: stats.contributedCents - deployedCents,
     peopleHelped: MOCK_PROJECTS.length,

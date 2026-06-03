@@ -32,7 +32,8 @@ export interface MemberRecord {
   referralCount: number;
 
   // Impact (updated by webhooks / payouts)
-  contributedCents: number;
+  contributedCents: number;        // gross — what the member actually paid
+  feeCents?: number;               // Stripe's cut on their payments (so net = contributed − fee)
   projectsHelped: string[];
   active: boolean;
 }
@@ -258,13 +259,34 @@ export async function getPublicStats() {
   const file = await load();
   const all = Object.values(file.byNumber);
   const active = all.filter((m) => m.active);
+  const gross = all.reduce((s, m) => s + m.contributedCents, 0);
+  const fees = all.reduce((s, m) => s + (m.feeCents ?? 0), 0);
   return {
     total: all.length,
     active: active.length,
     nextNumber: file.nextNumber,
-    contributedCents: all.reduce((s, m) => s + m.contributedCents, 0),
+    // Gross = what members paid; net = what's actually in the fund after Stripe's cut.
+    donatedCents: gross,
+    feeCents: fees,
+    contributedCents: Math.max(0, gross - fees), // "raised" = net, the honest in-the-fund figure
     suburbsBacked: new Set(all.map((m) => m.dedicatedSuburb).filter(Boolean)).size,
   };
+}
+
+/** Live per-suburb totals aggregated from real members (slug → stats). */
+export async function getSuburbTotals(): Promise<Record<string, { members: number; raisedCents: number; donatedCents: number }>> {
+  const file = await load();
+  const out: Record<string, { members: number; raisedCents: number; donatedCents: number }> = {};
+  for (const m of Object.values(file.byNumber)) {
+    const slug = m.dedicatedSuburb;
+    if (!slug) continue;
+    const net = Math.max(0, m.contributedCents - (m.feeCents ?? 0));
+    const e = (out[slug] ||= { members: 0, raisedCents: 0, donatedCents: 0 });
+    e.members += 1;
+    e.raisedCents += net;
+    e.donatedCents += m.contributedCents;
+  }
+  return out;
 }
 
 interface NewMemberArgs {
@@ -352,7 +374,7 @@ export async function updateMember(
   patch: Partial<Pick<MemberRecord,
     "displayName" | "city" | "dedicatedSuburb" | "notify" |
     "avatar" | "autoAllocate" | "allocations" | "plan" | "active" |
-    "contributedCents" | "projectsHelped">>
+    "contributedCents" | "feeCents" | "projectsHelped">>
 ): Promise<MemberRecord | null> {
   return withLock(FILE, async () => {
     const file = await load();

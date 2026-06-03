@@ -6,8 +6,12 @@ import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Badge, Dot } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { getSuburb, SUBURB_SLUGS, SUBURBS } from "@/lib/suburbs";
+import { getSuburbTotals } from "@/lib/members";
+import { SuburbScene } from "@/components/suburb/SuburbScene";
 import { MOCK_PROJECTS, formatAUD, formatDate } from "@/lib/data";
 import { CATEGORY_COLOURS } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 interface Params { params: { suburb: string } }
 
@@ -24,9 +28,12 @@ export function generateMetadata({ params }: Params): Metadata {
   };
 }
 
-export default function SuburbPage({ params }: Params) {
+export default async function SuburbPage({ params }: Params) {
   const suburb = getSuburb(params.suburb);
   if (!suburb) notFound();
+
+  const totals = await getSuburbTotals();
+  const live = totals[suburb.slug] ?? { members: 0, raisedCents: 0, donatedCents: 0 };
 
   // Surface projects in this suburb's priority categories.
   const localProjects = MOCK_PROJECTS.filter((p) => suburb.priorityCategories.includes(p.category)).slice(0, 6);
@@ -39,6 +46,16 @@ export default function SuburbPage({ params }: Params) {
         <Link href="/local" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink mb-6">
           <ArrowLeft className="w-3.5 h-3.5" /> All suburbs
         </Link>
+
+        {/* COLOURFUL SCENE BANNER */}
+        <div className="relative rounded-card overflow-hidden border border-border mb-10 h-44 sm:h-56">
+          <SuburbScene slug={suburb.slug} className="absolute inset-0 w-full h-full" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/45 via-transparent to-transparent" />
+          <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between">
+            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white drop-shadow">{suburb.name}</h1>
+            <span className="text-white/90 text-sm font-mono tabular drop-shadow">{suburb.postcode}</span>
+          </div>
+        </div>
 
         {/* HERO */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
@@ -65,7 +82,7 @@ export default function SuburbPage({ params }: Params) {
             </div>
             <div className="mt-6 pt-6 border-t border-border grid grid-cols-3 gap-3 text-center">
               <div>
-                <div className="text-xl font-semibold tabular">{suburb.memberCount}</div>
+                <div className="text-xl font-semibold tabular">{live.members}</div>
                 <div className="text-[11px] text-muted">members</div>
               </div>
               <div>
@@ -73,8 +90,8 @@ export default function SuburbPage({ params }: Params) {
                 <div className="text-[11px] text-muted">projects</div>
               </div>
               <div>
-                <div className="text-xl font-semibold tabular">{formatAUD(suburb.amountDeployedCents)}</div>
-                <div className="text-[11px] text-muted">deployed</div>
+                <div className="text-xl font-semibold tabular">{formatAUD(live.raisedCents)}</div>
+                <div className="text-[11px] text-muted">raised</div>
               </div>
             </div>
           </div>
@@ -82,9 +99,9 @@ export default function SuburbPage({ params }: Params) {
 
         {/* LOCAL STATS */}
         <section className="mt-16 grid grid-cols-3 gap-3">
-          <Stat label="Members in this suburb" value={suburb.memberCount.toLocaleString()} />
+          <Stat label="Members in this suburb" value={live.members.toLocaleString()} />
           <Stat label="Projects funded here" value={String(suburb.projectsFunded)} />
-          <Stat label="Deployed locally" value={formatAUD(suburb.amountDeployedCents)} />
+          <Stat label="Raised here (after fees)" value={formatAUD(live.raisedCents)} />
         </section>
 
         {/* FOCUS */}

@@ -49,9 +49,24 @@ export async function POST(req: NextRequest) {
         // Event id keeps it idempotent.
         const paid = inv.amount_paid ?? 0;
         await grantCredit(member.number, event.id, Math.floor(paid / 100));
-        // Track lifetime contribution (amount actually paid, in cents) and keep them active.
+
+        // Capture Stripe's actual fee on this charge so our "raised" figure is
+        // honest (net = what really lands in the fund). Fall back to an estimate.
+        let feeCents = 0;
+        try {
+          const invCharge = (inv as unknown as { charge?: string | { id?: string } }).charge;
+          const chargeId = typeof invCharge === "string" ? invCharge : invCharge?.id;
+          if (chargeId) {
+            const charge = await stripe().charges.retrieve(chargeId, { expand: ["balance_transaction"] });
+            const bt = charge.balance_transaction;
+            if (bt && typeof bt !== "string") feeCents = bt.fee ?? 0;
+          }
+        } catch { /* fall through to estimate */ }
+        if (!feeCents) feeCents = Math.round((paid * 0.0175 + 30) * 1.1); // AU card estimate
+
         await updateMember(member.number, {
           contributedCents: member.contributedCents + paid,
+          feeCents: (member.feeCents ?? 0) + feeCents,
           active: true,
         });
         break;

@@ -17,7 +17,7 @@ export default async function Home() {
   // If the read fails (e.g. a cold-start blip), render with safe fallbacks.
   let members: Awaited<ReturnType<typeof listPublicMembers>> = [];
   let stats: Awaited<ReturnType<typeof getPublicStats>> = {
-    total: 1, active: 1, nextNumber: 2, contributedCents: 0, suburbsBacked: 0,
+    total: 1, active: 1, nextNumber: 2, donatedCents: 0, feeCents: 0, contributedCents: 0, suburbsBacked: 0,
   };
   try {
     [members, stats] = await Promise.all([listPublicMembers(), getPublicStats()]);
