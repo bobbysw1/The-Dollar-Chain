@@ -14,6 +14,9 @@ export interface Cause {
   targetCents?: number;
   raisedCents?: number;
   votes?: number;
+  /** Up to 3 uploaded images (member-submitted causes). */
+  images?: string[];
+  createdAt?: string;
 }
 
 /** Team-curated active causes. These are the "ones we feel are relevant". */
@@ -85,9 +88,13 @@ export async function listActiveCauses(): Promise<Cause[]> {
     title: s.title,
     description: s.description,
     category: s.category,
+    suburb: s.suburb,
     source: "member",
     suggestedBy: s.suggestedBy,
     votes: s.votes,
+    images: s.images,
+    targetCents: s.targetCents,
+    createdAt: s.createdAt,
   }));
   return [...CURATED_CAUSES, ...memberCauses];
 }

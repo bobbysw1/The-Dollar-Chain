@@ -20,6 +20,7 @@ import {
 interface Cause {
   id: string; title: string; description: string; category: string;
   source: "curated" | "member"; suggestedBy?: number;
+  images?: string[]; targetCents?: number;
 }
 interface Member {
   number: number; email: string; plan: string; joinedAt: string;
@@ -183,22 +184,17 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const total = allocs.reduce((s, a) => s + a.pct, 0);
-  const canAdd = allocs.length < MAX_ALLOCATION_SLICES;
 
-  const causeTitle = (id: string) => causes.find((c) => c.id === id)?.title ?? id;
-
-  const setPct = (i: number, delta: number) => {
-    setAllocs((prev) => prev.map((a, idx) => idx === i
+  const toggleCause = (id: string) => {
+    setAllocs((prev) => {
+      if (prev.some((a) => a.causeId === id)) return prev.filter((a) => a.causeId !== id);
+      if (prev.length >= MAX_ALLOCATION_SLICES) return prev;
+      return [...prev, { causeId: id, pct: MIN_ALLOCATION_PCT }];
+    });
+  };
+  const setPctById = (id: string, delta: number) =>
+    setAllocs((prev) => prev.map((a) => a.causeId === id
       ? { ...a, pct: Math.max(MIN_ALLOCATION_PCT, Math.min(100, a.pct + delta)) } : a));
-  };
-  const setCause = (i: number, causeId: string) =>
-    setAllocs((prev) => prev.map((a, idx) => idx === i ? { ...a, causeId } : a));
-  const removeRow = (i: number) => setAllocs((prev) => prev.filter((_, idx) => idx !== i));
-  const addRow = () => {
-    const used = new Set(allocs.map((a) => a.causeId));
-    const next = selectableCauses.find((c) => !used.has(c.id));
-    if (next) setAllocs((prev) => [...prev, { causeId: next.id, pct: MIN_ALLOCATION_PCT }]);
-  };
 
   const save = async () => {
     setSaving(true); setMsg(null);
@@ -236,36 +232,46 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
       </div>
 
       {!auto && (
-        <div className="space-y-3">
-          {allocs.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border">
-              <select
-                value={a.causeId}
-                onChange={(e) => setCause(i, e.target.value)}
-                className="flex-1 h-9 px-2 text-sm rounded-lg border border-border bg-white min-w-0"
-              >
-                {selectableCauses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.source === "member" ? "★ " : ""}{c.title}
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button onClick={() => setPct(i, -MIN_ALLOCATION_PCT)} className="w-7 h-7 grid place-items-center rounded-lg border border-border hover:bg-surface"><Minus className="w-3.5 h-3.5" /></button>
-                <span className="w-12 text-center font-mono tabular text-sm">{fmt(a.pct)}</span>
-                <button onClick={() => setPct(i, MIN_ALLOCATION_PCT)} className="w-7 h-7 grid place-items-center rounded-lg border border-border hover:bg-surface"><Plus className="w-3.5 h-3.5" /></button>
-              </div>
-              {allocs.length > 1 && (
-                <button onClick={() => removeRow(i)} className="text-xs text-muted hover:text-danger shrink-0">Remove</button>
-              )}
-            </div>
-          ))}
+        <div className="space-y-4">
+          <p className="text-xs text-muted">Tap causes to back them, then split your dollar. Open any cause for its full story.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {selectableCauses.map((c) => {
+              const idx = allocs.findIndex((a) => a.causeId === c.id);
+              const on = idx >= 0;
+              return (
+                <div key={c.id}
+                  className={`rounded-xl border overflow-hidden transition-all ${on ? "border-accent ring-1 ring-accent/30" : "border-border hover:border-ink/30"}`}>
+                  <button onClick={() => toggleCause(c.id)} className="block w-full text-left">
+                    {c.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.images[0]} alt="" className="w-full h-24 object-cover" />
+                    ) : (
+                      <div className="w-full h-24 grid place-items-center bg-surface text-xs text-muted">{c.category}</div>
+                    )}
+                    <div className="flex items-start gap-2 p-3">
+                      <span className={`mt-0.5 w-4 h-4 rounded grid place-items-center text-[10px] shrink-0 ${on ? "bg-accent text-white" : "border border-border text-transparent"}`}>✓</span>
+                      <span className="text-sm font-medium leading-snug">{c.title}</span>
+                    </div>
+                  </button>
+                  <div className="px-3 pb-3 flex items-center justify-between gap-2">
+                    <Link href={`/causes/${c.id}`} className="text-xs text-accent hover:underline shrink-0">View page →</Link>
+                    {on && (
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setPctById(c.id, -MIN_ALLOCATION_PCT)} className="w-6 h-6 grid place-items-center rounded border border-border hover:bg-surface"><Minus className="w-3 h-3" /></button>
+                        <span className="w-10 text-center font-mono tabular text-xs">{fmt(allocs[idx].pct)}</span>
+                        <button onClick={() => setPctById(c.id, MIN_ALLOCATION_PCT)} className="w-6 h-6 grid place-items-center rounded border border-border hover:bg-surface"><Plus className="w-3 h-3" /></button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           <div className="flex items-center justify-between">
-            <button onClick={addRow} disabled={!canAdd}
-              className="text-sm text-accent hover:underline disabled:text-muted disabled:no-underline inline-flex items-center gap-1">
-              <Plus className="w-3.5 h-3.5" /> Add a cause
-            </button>
+            <Link href="/causes/new" className="text-sm text-accent hover:underline inline-flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> Add a new cause
+            </Link>
             <span className={`text-sm font-mono tabular ${total === 100 ? "text-success" : "text-danger"}`}>
               {fmt(total)} of $1.00
             </span>

@@ -2,13 +2,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, FolderKanban, LogOut, Image as ImageIcon, Check, X } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, FolderKanban, LogOut, Image as ImageIcon, Check, X, HeartHandshake } from "lucide-react";
 import { formatAUD } from "@/lib/data";
 import { PHOTO_PLACEMENT_LABELS, type PhotoPlacement } from "@/lib/types";
 
-type Tab = "overview" | "members" | "photos" | "projects" | "payments";
+type Tab = "overview" | "members" | "photos" | "causes" | "projects" | "payments";
 
 interface PendingPhoto { number: number; displayName?: string; photoUrl: string; photoPlacement?: PhotoPlacement; joinedAt: string }
+interface PendingCause { id: string; title: string; description: string; category: string; suburb?: string; images?: string[]; targetCents?: number; suggestedBy: number; createdAt: string }
 
 interface Stats { totalMembers: number; activeMembers: number; raisedCents: number; balanceCents: number; deployedCents: number; peopleHelped: number; suburbsBacked: number }
 interface Member { number: number; displayName?: string; dedicatedSuburb?: string; isActive: boolean; plan: string; contributedCents: number; joinedAt: string }
@@ -18,15 +19,19 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [pending, setPending] = useState<PendingPhoto[]>([]);
+  const [pendingCauses, setPendingCauses] = useState<PendingCause[]>([]);
   const router = useRouter();
 
   const loadPending = () =>
     fetch("/api/admin/photos", { cache: "no-store" }).then((r) => r.json()).then((j) => setPending(j.pending ?? [])).catch(() => {});
+  const loadCauses = () =>
+    fetch("/api/admin/causes", { cache: "no-store" }).then((r) => r.json()).then((j) => setPendingCauses(j.pending ?? [])).catch(() => {});
 
   useEffect(() => {
     fetch("/api/stats", { cache: "no-store" }).then((r) => r.json()).then(setStats).catch(() => {});
     fetch("/api/chain", { cache: "no-store" }).then((r) => r.json()).then((j) => setMembers(j.members ?? [])).catch(() => {});
     loadPending();
+    loadCauses();
   }, []);
 
   const signOut = async () => {
@@ -44,6 +49,7 @@ export default function AdminPage() {
             <NavItem icon={<LayoutDashboard className="w-4 h-4" />} active={tab === "overview"} onClick={() => setTab("overview")}>Overview</NavItem>
             <NavItem icon={<Users className="w-4 h-4" />} active={tab === "members"} onClick={() => setTab("members")}>Members</NavItem>
             <NavItem icon={<ImageIcon className="w-4 h-4" />} active={tab === "photos"} onClick={() => setTab("photos")} badge={pending.length || undefined}>Photos</NavItem>
+            <NavItem icon={<HeartHandshake className="w-4 h-4" />} active={tab === "causes"} onClick={() => setTab("causes")} badge={pendingCauses.length || undefined}>Causes</NavItem>
             <NavItem icon={<FolderKanban className="w-4 h-4" />} active={tab === "projects"} onClick={() => setTab("projects")}>Projects</NavItem>
             <NavItem icon={<CreditCard className="w-4 h-4" />} active={tab === "payments"} onClick={() => setTab("payments")}>Payments</NavItem>
           </nav>
@@ -56,6 +62,7 @@ export default function AdminPage() {
           {tab === "overview" && <Overview stats={stats} members={members} />}
           {tab === "members" && <MembersTab members={members} />}
           {tab === "photos" && <PhotosTab pending={pending} reload={loadPending} />}
+          {tab === "causes" && <CausesTab pending={pendingCauses} reload={loadCauses} />}
           {tab === "projects" && <ProjectsTab />}
           {tab === "payments" && <PaymentsTab />}
         </section>
@@ -207,6 +214,57 @@ function MembersTab({ members }: { members: Member[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function CausesTab({ pending, reload }: { pending: PendingCause[]; reload: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const act = async (id: string, action: "approve" | "reject") => {
+    setBusy(id);
+    try {
+      await fetch("/api/admin/causes", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      await reload();
+    } finally { setBusy(null); }
+  };
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold mb-1">Causes to review</h1>
+      <p className="text-muted text-sm mb-6">Member-submitted causes stay hidden until you approve them. Approved causes get a public tile and fundraising page.</p>
+      {pending.length === 0 ? (
+        <div className="bg-white border border-border rounded-card p-10 text-center text-muted">Nothing waiting — all caught up. 🎉</div>
+      ) : (
+        <div className="space-y-4">
+          {pending.map((c) => (
+            <div key={c.id} className="bg-white border border-border rounded-card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-xs text-muted mb-1">{c.category}{c.suburb ? ` · ${c.suburb}` : ""} · by #{c.suggestedBy}{c.targetCents ? ` · target ${formatAUD(c.targetCents)}` : ""}</div>
+                  <h3 className="font-semibold text-lg">{c.title}</h3>
+                  <p className="text-sm text-muted mt-1 whitespace-pre-line">{c.description}</p>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}
+                    className="h-9 px-3 rounded-lg bg-accent text-white text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:bg-emerald-700 disabled:opacity-60"><Check className="w-4 h-4" /> Approve</button>
+                  <button onClick={() => act(c.id, "reject")} disabled={busy === c.id}
+                    className="h-9 px-3 rounded-lg border border-border text-sm text-ink inline-flex items-center justify-center gap-1.5 hover:border-danger hover:text-danger disabled:opacity-60"><X className="w-4 h-4" /> Reject</button>
+                </div>
+              </div>
+              {c.images && c.images.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  {c.images.map((url) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={url} src={url} alt="" className="w-24 h-24 rounded-lg object-cover border border-border" />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

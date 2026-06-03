@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ChevronUp, Coins } from "lucide-react";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Dot, Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { CountUp } from "@/components/CountUp";
 import { CreditsBar } from "@/components/CreditsBar";
 import { useMe } from "@/lib/useMe";
@@ -219,10 +219,6 @@ function labelError(code: string) {
 
 function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"]; onChange: () => void }) {
   const [items, setItems] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<ProjectCategory>("Shelter");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -231,24 +227,6 @@ function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"];
     setItems(j.items ?? []);
   }, []);
   useEffect(() => { load(); }, [load]);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (!title.trim()) return;
-    const r = await fetch("/api/suggestions", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, description, category }),
-    });
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      setError(j.error || "Submit failed");
-      return;
-    }
-    setTitle(""); setDescription(""); setOpen(false);
-    await load();
-  };
 
   const upvote = async (id: string) => {
     setError(null);
@@ -272,59 +250,21 @@ function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"];
   return (
     <div className="bg-white border border-border rounded-card p-6">
       <div className="flex items-center justify-between mb-1">
-        <div className="font-medium">Member suggestions</div>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          disabled={!me?.authenticated}
-          className="text-xs text-accent hover:underline inline-flex items-center gap-1 disabled:text-muted disabled:no-underline"
+        <div className="font-medium">Member causes</div>
+        <Link
+          href="/causes/new"
+          className="text-xs text-accent hover:underline inline-flex items-center gap-1"
         >
-          <Plus className="w-3 h-3" /> Suggest
-        </button>
+          <Plus className="w-3 h-3" /> Add a cause
+        </Link>
       </div>
       <div className="text-xs text-muted mb-4 flex items-center gap-1.5">
         <Coins className="w-3 h-3" />
-        Suggest anything — kid's sport, kits, surgery, beach work, marching band. Members vote.
+        Anything local — kid's sport, kits, surgery, beach work. Add one with photos &amp; a target; members vote.
       </div>
 
-      <AnimatePresence initial={false}>
-        {open && me?.authenticated && (
-          <motion.form
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            onSubmit={submit}
-            className="overflow-hidden mb-4"
-          >
-            <div className="space-y-2 pt-1">
-              <input
-                value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="Issue title" maxLength={80}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border focus:outline-none focus:border-accent"
-              />
-              <textarea
-                value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief context (who, where, what's needed)"
-                rows={3} maxLength={240}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border focus:outline-none focus:border-accent resize-none"
-              />
-              <select
-                value={category} onChange={(e) => setCategory(e.target.value as ProjectCategory)}
-                className="w-full h-9 px-3 text-sm rounded-lg border border-border bg-white"
-              >
-                <option>Shelter</option><option>Rent</option><option>Food</option>
-                <option>Utilities</option><option>Other</option>
-              </select>
-              <Button type="submit" size="sm" className="w-full" disabled={!title.trim()}>
-                Submit as #{memberNumber}
-              </Button>
-              <p className="text-[11px] text-muted">Submitting is free. Upvotes cost 1 credit.</p>
-            </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
-
       {items.length === 0 ? (
-        <p className="text-sm text-muted">No suggestions yet — be the first.</p>
+        <p className="text-sm text-muted">No causes yet — <Link href="/causes/new" className="text-accent hover:underline">add the first</Link>.</p>
       ) : (
         <ul className="space-y-2">
           {items.map((s) => {
@@ -347,8 +287,12 @@ function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"];
                   <ChevronUp className="w-4 h-4" />
                   <span className="text-xs font-medium tabular">{s.votes}</span>
                 </button>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium leading-snug">{s.title}</div>
+                <Link href={`/causes/${s.id}`} className="min-w-0 flex-1 group">
+                  {s.images?.[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.images[0]} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5 border border-border" />
+                  )}
+                  <div className="text-sm font-medium leading-snug group-hover:text-accent transition-colors">{s.title}</div>
                   {s.description && (
                     <div className="text-xs text-muted mt-0.5 line-clamp-2">{s.description}</div>
                   )}
@@ -356,7 +300,7 @@ function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"];
                     <Badge tone="muted" className="!text-[10px] !py-0">{s.category}</Badge>
                     <span>by #{s.suggestedBy}</span>
                   </div>
-                </div>
+                </Link>
               </li>
             );
           })}
