@@ -3,6 +3,15 @@ export type HairStyle = "short" | "long" | "curly" | "bun" | "buzz" | "none";
 export type Accessory = "cap" | "beanie" | "glasses" | "sunglasses" | "bow" | "earrings" | "moustache" | "freckles";
 export type Build = "slim" | "regular" | "broad";
 export type PhotoStatus = "pending" | "approved";
+/** Where an uploaded photo sits on the figure, and the crop shape used. */
+export type PhotoPlacement = "head" | "torso" | "full";
+export type PhotoShape = "circle" | "square";
+export const PHOTO_PLACEMENTS: PhotoPlacement[] = ["head", "torso", "full"];
+export const PHOTO_PLACEMENT_LABELS: Record<PhotoPlacement, string> = {
+  head: "Face",
+  torso: "Torso",
+  full: "Full body",
+};
 /** Every plan is the SAME commitment — $1 a week = $52 a year. The only choice
  *  is how often Stripe charges you. Fewer charges = fewer fixed ~30¢ fees = more
  *  reaches the causes. */
@@ -150,6 +159,10 @@ export interface PersonAppearance {
   /** Optional uploaded photo. Shown publicly only once approved. */
   photoUrl?: string;
   photoStatus?: PhotoStatus;
+  /** Where the photo sits on the figure (defaults to "full" for older photos). */
+  photoPlacement?: PhotoPlacement;
+  /** Crop shape baked into the image (circle for faces, square otherwise). */
+  photoShape?: PhotoShape;
 }
 
 export interface ChainMember extends PersonAppearance {

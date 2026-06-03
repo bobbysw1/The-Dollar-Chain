@@ -1,11 +1,13 @@
 "use client";
 import { useRef, useState } from "react";
-import { Upload, Shuffle, X, ShieldCheck } from "lucide-react";
+import { Upload, Shuffle, X, ShieldCheck, Move } from "lucide-react";
 import { ChainPerson } from "@/components/chain/ChainPerson";
+import { PhotoCropper } from "@/components/customise/PhotoCropper";
 import {
   SKIN_TONES, HAIR_COLOURS, SHIRT_COLOURS, HAIR_STYLES, ACCESSORIES, BUILDS,
-  ACCESSORY_LABELS, BUILD_LABELS,
+  ACCESSORY_LABELS, BUILD_LABELS, PHOTO_PLACEMENTS, PHOTO_PLACEMENT_LABELS,
   type PersonAppearance, type HairStyle, type Accessory, type Build,
+  type PhotoPlacement, type PhotoShape,
 } from "@/lib/types";
 
 interface Props {
@@ -20,23 +22,34 @@ export function AvatarEditor({ value, onChange, number }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const accessories = value.accessories ?? [];
   const build = value.build ?? "regular";
+  const placement = value.photoPlacement ?? "full";
   const toggleAccessory = (a: Accessory) => {
     const has = accessories.includes(a);
     onChange({ accessories: has ? accessories.filter((x) => x !== a) : [...accessories, a] });
   };
 
-  const onFile = async (file: File) => {
-    setUploadErr(null); setUploading(true);
+  // A new file was chosen — open the crop & place modal (don't upload yet).
+  const onFileChosen = (file: File) => {
+    setUploadErr(null);
+    setCropSrc(URL.createObjectURL(file));
+  };
+
+  // The cropper handed back a finished image — upload it and record placement.
+  const onCropSave = async (blob: Blob, place: PhotoPlacement, shape: PhotoShape) => {
+    setUploading(true); setUploadErr(null);
     try {
+      const ext = shape === "circle" ? "png" : "jpg";
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", new File([blob], `avatar.${ext}`, { type: blob.type }));
       const r = await fetch("/api/upload", { method: "POST", body: fd });
       const j = await r.json();
       if (!r.ok) { setUploadErr(j.error || "Upload failed."); return; }
-      onChange({ photoUrl: j.url, photoStatus: "pending" });
+      onChange({ photoUrl: j.url, photoStatus: "pending", photoPlacement: place, photoShape: shape });
+      closeCropper();
     } catch {
       setUploadErr("Upload failed — check your connection.");
     } finally {
@@ -44,11 +57,19 @@ export function AvatarEditor({ value, onChange, number }: Props) {
     }
   };
 
+  const closeCropper = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  const removePhoto = () =>
+    onChange({ photoUrl: undefined, photoStatus: undefined, photoPlacement: undefined, photoShape: undefined });
+
   const randomise = () => onChange({
     skinTone: pick(SKIN_TONES), shirtColour: pick(SHIRT_COLOURS), hairColour: pick(HAIR_COLOURS),
     hairStyle: pick(HAIR_STYLES), build: pick(BUILDS),
     accessories: Math.random() > 0.5 ? [pick(ACCESSORIES)] : [],
-    photoUrl: undefined, photoStatus: undefined,
+    photoUrl: undefined, photoStatus: undefined, photoPlacement: undefined, photoShape: undefined,
   });
 
   return (
@@ -58,7 +79,7 @@ export function AvatarEditor({ value, onChange, number }: Props) {
         <ChainPerson
           skinTone={value.skinTone} shirtColour={value.shirtColour} hairColour={value.hairColour}
           hairStyle={value.hairStyle} build={build} accessories={accessories}
-          photoUrl={value.photoUrl} number={number} isActive size="lg"
+          photoUrl={value.photoUrl} photoPlacement={value.photoPlacement} number={number} isActive size="lg"
         />
         <button onClick={randomise} className="mt-3 text-xs text-accent hover:underline inline-flex items-center gap-1">
           <Shuffle className="w-3 h-3" /> Surprise me
@@ -69,18 +90,38 @@ export function AvatarEditor({ value, onChange, number }: Props) {
         {/* Photo upload */}
         <Field label="Use a photo (optional)">
           {value.photoUrl ? (
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={value.photoUrl} alt="Your upload" className="w-14 h-14 rounded-xl object-cover border border-border" />
-              <div className="text-sm">
-                <div className="text-ink font-medium">Photo added</div>
-                <div className="text-xs text-muted">Pending review before it shows publicly.</div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={value.photoUrl} alt="Your upload" className="w-14 h-14 rounded-xl object-cover border border-border" />
+                <div className="text-sm">
+                  <div className="text-ink font-medium">Photo added · {PHOTO_PLACEMENT_LABELS[placement]}</div>
+                  <div className="text-xs text-muted">Pending review before it shows publicly.</div>
+                </div>
+                <button
+                  onClick={removePhoto}
+                  className="ml-auto text-muted hover:text-danger"
+                  aria-label="Remove photo"
+                ><X className="w-4 h-4" /></button>
               </div>
-              <button
-                onClick={() => onChange({ photoUrl: undefined, photoStatus: undefined })}
-                className="ml-auto text-muted hover:text-danger"
-                aria-label="Remove photo"
-              ><X className="w-4 h-4" /></button>
+              {/* Quick move between spots without re-cropping */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted inline-flex items-center gap-1"><Move className="w-3 h-3" /> Move:</span>
+                {PHOTO_PLACEMENTS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => onChange({ photoPlacement: p })}
+                    className={`px-2.5 h-7 text-xs rounded-full border transition-colors ${
+                      placement === p ? "bg-accent text-white border-accent" : "border-border text-ink hover:border-ink/30"
+                    }`}
+                  >
+                    {PHOTO_PLACEMENT_LABELS[p]}
+                  </button>
+                ))}
+                <button onClick={() => fileRef.current?.click()} className="ml-auto text-xs text-accent hover:underline">
+                  Replace
+                </button>
+              </div>
             </div>
           ) : (
             <button
@@ -93,7 +134,7 @@ export function AvatarEditor({ value, onChange, number }: Props) {
           )}
           <input
             ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileChosen(f); e.target.value = ""; }}
           />
           {uploadErr && <div className="text-xs text-danger mt-1">{uploadErr}</div>}
           <div className="mt-2 flex items-start gap-1.5 text-xs text-muted">
@@ -131,6 +172,15 @@ export function AvatarEditor({ value, onChange, number }: Props) {
           </div>
         </div>
       </div>
+
+      {cropSrc && (
+        <PhotoCropper
+          src={cropSrc}
+          appearance={value}
+          onCancel={closeCropper}
+          onSave={onCropSave}
+        />
+      )}
     </div>
   );
 }

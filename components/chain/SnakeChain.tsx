@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChainPerson } from "./ChainPerson";
-import type { HairStyle, Accessory, Build } from "@/lib/types";
+import type { HairStyle, Accessory, Build, PhotoPlacement } from "@/lib/types";
 
 /** Minimal shape the chain needs to draw a figure. */
 export interface ChainFigure {
@@ -14,6 +14,7 @@ export interface ChainFigure {
   build?: Build;
   accessories?: Accessory[];
   photoUrl?: string;
+  photoPlacement?: PhotoPlacement;
 }
 
 interface Props {
@@ -251,6 +252,7 @@ export function SnakeChain({
             build={m.build}
             accessories={m.accessories}
             photoUrl={m.photoUrl}
+            photoPlacement={m.photoPlacement}
             isActive={m.isActive}
             size="sm"
             alwaysShowNumber

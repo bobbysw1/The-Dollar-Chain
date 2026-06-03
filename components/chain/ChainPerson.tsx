@@ -1,6 +1,6 @@
 "use client";
 import { memo, useId } from "react";
-import type { HairStyle, Accessory, Build } from "@/lib/types";
+import type { HairStyle, Accessory, Build, PhotoPlacement } from "@/lib/types";
 
 interface Props {
   number?: number;
@@ -11,6 +11,7 @@ interface Props {
   build?: Build;
   accessories?: Accessory[];
   photoUrl?: string;
+  photoPlacement?: PhotoPlacement;
   isActive?: boolean;
   size?: "sm" | "md" | "lg";
   showNumber?: boolean;
@@ -126,7 +127,7 @@ function One({ kind }: { kind: Accessory }) {
 
 function ChainPersonBase({
   number, skinTone, shirtColour, hairColour, hairStyle,
-  build = "regular", accessories = [], photoUrl,
+  build = "regular", accessories = [], photoUrl, photoPlacement,
   isActive = true, size = "md", showNumber = false, alwaysShowNumber = false, className = "",
 }: Props) {
   const w = SIZES[size];
@@ -136,6 +137,10 @@ function ChainPersonBase({
   const shirt = isActive ? shirtColour : "#D4D4D8";
   const hair = isActive ? hairColour : "#A1A1AA";
   const sx = BUILD_SCALE[build];
+  const placement: PhotoPlacement | null = photoUrl ? (photoPlacement ?? "full") : null;
+  const greyscale = !isActive ? { filter: "grayscale(1)" } : undefined;
+  const BODY_PATH = "M 34 50 Q 50 45 66 50 L 70 64 Q 73 82 66 96 L 34 96 Q 27 82 30 64 Z";
+  const buildTf = `translate(50 0) scale(${sx} 1) translate(-50 0)`;
 
   return (
     <div
@@ -154,20 +159,27 @@ function ChainPersonBase({
           <filter id={`sh-${uid}`} x="-25%" y="-10%" width="150%" height="125%">
             <feDropShadow dx="0" dy="1.6" stdDeviation="1.4" floodOpacity="0.16" />
           </filter>
-          <clipPath id={`pc-${uid}`}>
+          <clipPath id={`pc-full-${uid}`}>
             <rect x="14" y="2" width="72" height="146" rx="14" />
+          </clipPath>
+          <clipPath id={`pc-head-${uid}`}>
+            <circle cx="50" cy="24" r="18" />
+          </clipPath>
+          <clipPath id={`pc-torso-${uid}`}>
+            <path d={BODY_PATH} />
           </clipPath>
         </defs>
 
-        {photoUrl ? (
+        {placement === "full" ? (
+          /* Whole figure is the photo */
           <g filter={`url(#sh-${uid})`}>
             <rect x="14" y="2" width="72" height="146" rx="14" fill="#E7E0D2" />
             <image
               href={photoUrl}
               x="14" y="2" width="72" height="146"
-              clipPath={`url(#pc-${uid})`}
+              clipPath={`url(#pc-full-${uid})`}
               preserveAspectRatio="xMidYMid slice"
-              style={!isActive ? { filter: "grayscale(1)" } : undefined}
+              style={greyscale}
             />
           </g>
         ) : (
@@ -176,18 +188,50 @@ function ChainPersonBase({
             <rect x="0" y="52" width="100" height="12" rx="6" fill={skin} />
 
             {/* TORSO + LEGS scale horizontally with build (around centre x=50) */}
-            <g transform={`translate(50 0) scale(${sx} 1) translate(-50 0)`}>
+            <g transform={buildTf}>
               <path d="M 38 92 L 38 140 Q 38 146 44 146 L 48 146 Q 50 146 50 140 L 50 92 Z" fill={shirt} />
               <path d="M 62 92 L 62 140 Q 62 146 56 146 L 52 146 Q 50 146 50 140 L 50 92 Z" fill={shirt} />
-              <path d="M 34 50 Q 50 45 66 50 L 70 64 Q 73 82 66 96 L 34 96 Q 27 82 30 64 Z" fill={shirt} />
+              <path d={BODY_PATH} fill={shirt} />
             </g>
 
-            {/* NECK + HEAD (fixed size) */}
-            <rect x="46" y="38" width="8" height="10" rx="3" fill={skin} />
-            <circle cx="50" cy="24" r="16" fill={skin} />
+            {/* TORSO PHOTO — sits on the chest, follows the build width */}
+            {placement === "torso" && (
+              <g transform={buildTf}>
+                <path d={BODY_PATH} fill="#E7E0D2" />
+                <image
+                  href={photoUrl}
+                  x="27" y="44" width="46" height="54"
+                  clipPath={`url(#pc-torso-${uid})`}
+                  preserveAspectRatio="xMidYMid slice"
+                  style={greyscale}
+                />
+              </g>
+            )}
 
-            <Hair style={hairStyle} colour={hair} />
-            {accessories.map((a) => <One key={a} kind={a} />)}
+            {/* NECK */}
+            <rect x="46" y="38" width="8" height="10" rx="3" fill={skin} />
+
+            {placement === "head" ? (
+              /* HEAD PHOTO — circular face, designed body below */
+              <>
+                <circle cx="50" cy="24" r="18" fill="#E7E0D2" />
+                <image
+                  href={photoUrl}
+                  x="32" y="6" width="36" height="36"
+                  clipPath={`url(#pc-head-${uid})`}
+                  preserveAspectRatio="xMidYMid slice"
+                  style={greyscale}
+                />
+                <circle cx="50" cy="24" r="18" fill="none" stroke={skin} strokeWidth="1" opacity={0.5} />
+              </>
+            ) : (
+              /* DESIGNED HEAD */
+              <>
+                <circle cx="50" cy="24" r="16" fill={skin} />
+                <Hair style={hairStyle} colour={hair} />
+                {accessories.map((a) => <One key={a} kind={a} />)}
+              </>
+            )}
           </g>
         )}
       </svg>

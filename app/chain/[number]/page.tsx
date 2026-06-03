@@ -35,6 +35,7 @@ export default async function MemberPage({ params }: Params) {
     build: rec.avatar.build ?? "regular",
     accessories: rec.avatar.accessories ?? [],
     photoUrl: rec.avatar.photoStatus === "approved" ? rec.avatar.photoUrl : undefined,
+    photoPlacement: rec.avatar.photoStatus === "approved" ? rec.avatar.photoPlacement : undefined,
     joinedAt: rec.joinedAt,
     contributedCents: rec.contributedCents,
     plan: rec.plan,
@@ -76,6 +77,7 @@ export default async function MemberPage({ params }: Params) {
             build={member.build}
             accessories={member.accessories}
             photoUrl={member.photoUrl}
+            photoPlacement={member.photoPlacement}
             size="lg"
             isActive={member.isActive}
           />

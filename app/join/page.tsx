@@ -468,6 +468,8 @@ function Step3() {
         skinTone: s.skinTone, shirtColour: s.shirtColour, hairColour: s.hairColour,
         hairStyle: s.hairStyle, build: s.build, accessories: s.accessories,
         photoUrl: s.photoUrl || undefined, photoStatus: s.photoUrl ? "pending" : undefined,
+        photoPlacement: s.photoUrl ? (s.photoPlacement ?? "full") : undefined,
+        photoShape: s.photoUrl ? s.photoShape : undefined,
       },
       referredByCode: s.referredByCode,
     };
@@ -627,6 +629,7 @@ function Step4() {
           build={s.build}
           accessories={s.accessories}
           photoUrl={s.photoUrl || undefined}
+          photoPlacement={s.photoPlacement}
           size="lg"
           isActive
         />

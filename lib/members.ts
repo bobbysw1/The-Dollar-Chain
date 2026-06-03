@@ -50,6 +50,8 @@ export interface PublicMember {
   build: PersonAppearance["build"];
   accessories: PersonAppearance["accessories"];
   photoUrl?: string;
+  photoPlacement?: PersonAppearance["photoPlacement"];
+  photoShape?: PersonAppearance["photoShape"];
   contributedCents: number;
   joinedAt: string;
   projectsHelped: string[];
@@ -102,6 +104,8 @@ function normaliseAvatar(a: Partial<PersonAppearance> & { accessory?: string }):
     accessories,
     photoUrl: a.photoUrl,
     photoStatus: a.photoStatus,
+    photoPlacement: a.photoPlacement ?? (a.photoUrl ? "full" : undefined),
+    photoShape: a.photoShape,
   };
 }
 
@@ -129,6 +133,8 @@ function toPublic(m: MemberRecord): PublicMember {
     accessories: av.accessories,
     // Only expose an uploaded photo publicly once it's been approved.
     photoUrl: av.photoStatus === "approved" ? av.photoUrl : undefined,
+    photoPlacement: av.photoStatus === "approved" ? av.photoPlacement : undefined,
+    photoShape: av.photoStatus === "approved" ? av.photoShape : undefined,
     contributedCents: m.contributedCents,
     joinedAt: m.joinedAt,
     projectsHelped: m.projectsHelped,

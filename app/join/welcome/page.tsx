@@ -55,6 +55,7 @@ function Welcome() {
             build={s.build}
             accessories={s.accessories}
             photoUrl={s.photoUrl || undefined}
+            photoPlacement={s.photoPlacement}
             size="lg"
             isActive
           />
