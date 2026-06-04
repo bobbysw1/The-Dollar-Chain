@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MapPin, ShieldCheck, Vote, Coins, Eye } from "lucide-react";
 import { SnakeChain } from "@/components/chain/SnakeChain";
+import { UnityRing } from "@/components/illustrations/UnityRing";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { CountUp } from "@/components/CountUp";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +38,7 @@ export default async function Home() {
         <div className="relative max-w-column w-full text-center">
           <div aria-hidden className="absolute inset-0 -inset-x-12 -inset-y-12 bg-cream/70 rounded-[44px] blur-2xl" />
           <div className="relative">
+            <UnityRing className="w-40 h-40 sm:w-44 sm:h-44 mx-auto mb-5" />
             <Badge tone="accent" className="mb-6">
               <MapPin className="w-3 h-3" /> Australia · Southern Gold Coast pilot
             </Badge>
