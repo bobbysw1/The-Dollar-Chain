@@ -23,7 +23,7 @@ const SECTIONS: { heading: string; items: FAQ[] }[] = [
       },
       {
         q: "How often do I get charged?",
-        a: "Whichever you pick: $1 every week, $1 every fortnight, or $1 every month. Change or cancel any time from your account email.",
+        a: "Whichever suits you — it's always the same $1-a-week commitment, just bundled differently: $1 a week, $4 a month, $12 a quarter, $26 every six months, or $52 a year. Fewer charges means fewer processing fees, so more of your money reaches the cause. Change or cancel any time from your account.",
       },
       {
         q: "What is the number?",
@@ -61,7 +61,15 @@ const SECTIONS: { heading: string; items: FAQ[] }[] = [
       },
       {
         q: "Why does Stripe take a fee at all?",
-        a: "Every card or bank payment has a processing cost — there's no way around it. Stripe charges roughly 1.75% + 30¢ per card payment. That fixed 30¢ hurts most on tiny charges, so a single $1 loses about a third to fees. We get around it by batching: $1/week is charged as one $4 payment a month, so the 30¢ only lands once. That's why weekly-billed-monthly is our recommended plan.",
+        a: "Every card or bank payment has a processing cost — there's no way around it. Stripe charges roughly 1.7% + 30¢ per Australian card payment (more for overseas cards). That fixed 30¢ hurts most on tiny charges, so a single $1 loses about a third to fees. We get around it by bundling: $1/week is charged as one $4 payment a month, so the 30¢ only lands once. That's why a monthly charge is our recommended plan.",
+      },
+      {
+        q: "Card or bank debit — which should I pick?",
+        a: "Bank Direct Debit, if you can. It pulls straight from your Australian bank account, and banks charge us far less than the card networks do — so more of every dollar reaches the people who need it. The only trade-off is it takes a few days to set up the first time and to clear. Cards are instant and easy if you'd rather; they just cost the cause a little more. Either way, you're in the chain.",
+      },
+      {
+        q: "Do you charge GST? Are my donations taxed?",
+        a: "No. Your donation is a gift, and gifts aren't subject to GST — nothing extra is ever added to what you give. The only GST anywhere near this is the 10% Stripe adds to its own processing fee; that's GST on a service we buy, not on your donation, and once we're GST-registered we can claim it back.",
       },
       {
         q: "Is this a registered charity?",
