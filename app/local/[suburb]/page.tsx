@@ -7,7 +7,9 @@ import { Badge, Dot } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { getSuburb, SUBURB_SLUGS, SUBURBS } from "@/lib/suburbs";
 import { getSuburbTotals } from "@/lib/members";
+import { listActiveCauses } from "@/lib/causes";
 import { SuburbScene } from "@/components/suburb/SuburbScene";
+import { CauseArt } from "@/components/causes/CauseArt";
 import { MOCK_PROJECTS, formatAUD, formatDate } from "@/lib/data";
 import { CATEGORY_COLOURS } from "@/lib/types";
 
@@ -34,6 +36,9 @@ export default async function SuburbPage({ params }: Params) {
 
   const totals = await getSuburbTotals();
   const live = totals[suburb.slug] ?? { members: 0, raisedCents: 0, donatedCents: 0 };
+
+  const allCauses = await listActiveCauses();
+  const localCauses = allCauses.filter((c) => c.suburb === suburb.slug && c.id !== "c-where-needed");
 
   // Surface projects in this suburb's priority categories.
   const localProjects = MOCK_PROJECTS.filter((p) => suburb.priorityCategories.includes(p.category)).slice(0, 6);
@@ -102,6 +107,64 @@ export default async function SuburbPage({ params }: Params) {
           <Stat label="Members in this suburb" value={live.members.toLocaleString()} />
           <Stat label="Projects funded here" value={String(suburb.projectsFunded)} />
           <Stat label="Raised here (after fees)" value={formatAUD(live.raisedCents)} />
+        </section>
+
+        {/* IMPROVEMENT FUND — causes locals have flagged */}
+        <section className="mt-16">
+          <h2 className="text-3xl font-semibold tracking-tight">The {suburb.name} improvement fund</h2>
+          <p className="text-muted mt-2 max-w-2xl">
+            Real things locals have flagged that need fixing — the council should, but isn&apos;t. Back the ones you
+            care about with your $1. Every dollar is a vote for what gets done first.
+          </p>
+
+          {localCauses.length === 0 ? (
+            <div className="mt-6 rounded-card border border-dashed border-border bg-white/60 p-8 text-center">
+              <p className="text-muted">No causes here yet. <Link href="/causes/new" className="text-accent hover:underline">Add the first one</Link> — what needs fixing near you?</p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {localCauses.map((c) => {
+                  const target = c.targetCents ?? 0;
+                  const raised = c.raisedCents ?? 0;
+                  const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+                  return (
+                    <Link key={c.id} href={`/causes/${c.id}`}
+                      className="group bg-white border border-border rounded-card overflow-hidden hover:border-ink/30 hover:-translate-y-0.5 transition-all">
+                      <div className="h-32 overflow-hidden border-b border-border">
+                        {c.images?.[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.images[0]} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <CauseArt category={c.category} className="w-full h-full" />
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 text-xs text-muted mb-1.5">
+                          <Dot color={CATEGORY_COLOURS[c.category]} /> <span>{c.category}</span>
+                        </div>
+                        <h3 className="font-semibold leading-snug group-hover:text-accent transition-colors">{c.title}</h3>
+                        <p className="text-sm text-muted mt-1 line-clamp-2">{c.description}</p>
+                        {target > 0 && (
+                          <div className="mt-3">
+                            <div className="h-1.5 rounded-full bg-surface overflow-hidden">
+                              <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="text-[11px] text-muted mt-1 tabular">{formatAUD(raised)} of {formatAUD(target)}</div>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="mt-5">
+                <Link href="/causes/new" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+                  + Add another {suburb.name} cause
+                </Link>
+              </div>
+            </>
+          )}
         </section>
 
         {/* FOCUS */}

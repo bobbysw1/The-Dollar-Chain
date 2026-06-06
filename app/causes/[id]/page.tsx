@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Users } from "lucide-react";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Dot, Badge } from "@/components/ui/Badge";
 import { BackCauseButton } from "@/components/causes/BackCauseButton";
+import { CauseArt } from "@/components/causes/CauseArt";
 import { getCause } from "@/lib/causes";
 import { getSuburb } from "@/lib/suburbs";
 import { formatAUD } from "@/lib/data";
@@ -40,8 +41,8 @@ export default async function CausePage({ params }: Params) {
 
         <h1 className="text-4xl font-semibold tracking-tight">{cause.title}</h1>
 
-        {/* gallery */}
-        {images.length > 0 && (
+        {/* gallery (uploaded photos) or a matching illustration */}
+        {images.length > 0 ? (
           <div className={`mt-6 grid gap-3 ${images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
             {images.map((url, i) => (
               <div key={url} className={`overflow-hidden rounded-card border border-border bg-surface ${images.length > 1 && i === 0 ? "col-span-2" : ""}`}>
@@ -49,6 +50,10 @@ export default async function CausePage({ params }: Params) {
                 <img src={url} alt={`${cause.title} photo ${i + 1}`} className="w-full h-full object-cover max-h-[420px]" />
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-card overflow-hidden border border-border">
+            <CauseArt category={cause.category} className="w-full h-56 sm:h-72" />
           </div>
         )}
 

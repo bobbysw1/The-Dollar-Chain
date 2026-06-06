@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/Button";
 import { Badge, Dot } from "@/components/ui/Badge";
 import { ChainPerson } from "@/components/chain/ChainPerson";
 import { AvatarEditor } from "@/components/customise/AvatarEditor";
+import { CauseArt } from "@/components/causes/CauseArt";
 import { SUBURBS, getSuburb } from "@/lib/suburbs";
 import {
   SKIN_TONES, SHIRT_COLOURS, HAIR_COLOURS, HAIR_STYLES, ACCESSORIES,
   CATEGORY_COLOURS, planMetaFor,
   MIN_ALLOCATION_PCT, MAX_ALLOCATION_SLICES,
-  type PersonAppearance, type Allocation, type HairStyle, type Accessory,
+  type PersonAppearance, type Allocation, type HairStyle, type Accessory, type ProjectCategory,
 } from "@/lib/types";
 
 interface Cause {
@@ -246,7 +247,7 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.images[0]} alt="" className="w-full h-24 object-cover" />
                     ) : (
-                      <div className="w-full h-24 grid place-items-center bg-surface text-xs text-muted">{c.category}</div>
+                      <CauseArt category={c.category as ProjectCategory} className="w-full h-24" />
                     )}
                     <div className="flex items-start gap-2 p-3">
                       <span className={`mt-0.5 w-4 h-4 rounded grid place-items-center text-[10px] shrink-0 ${on ? "bg-accent text-white" : "border border-border text-transparent"}`}>✓</span>
