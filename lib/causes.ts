@@ -94,16 +94,16 @@ export const CURATED_CAUSES: Cause[] = [
   {
     id: "c-pb-laguna-park",
     title: "Upgrade Laguna Lake park & playground",
-    description: "Laguna Park is hugely popular but tired — the playground is dated compared with the newer ones up the coast, and the lake area needs a clean-out. Fund a refresh, plus a second jetty platform so more kids have room to fish.",
+    description: "Laguna Park is hugely popular but tired — the playground is dated next to the newer ones up the coast, and the lake area needs a clean-out. This first-stage fund pays for the quick wins (shade, seating, a tidy-up and new bits of equipment) and builds the case for council to fund the rest.",
     category: "Parks", suburb: "palm-beach", source: "curated",
-    targetCents: 800000, raisedCents: 0,
+    targetCents: 600000, raisedCents: 0,
   },
   {
     id: "c-pb-crossings",
     title: "Pedestrian crossings in the shop precinct",
-    description: "Crossing the road in the Palm Beach shops (roughly 4th to 8th Avenue) is hard and unsafe for kids, families and older residents. Fund marked/zebra crossings — like Coolangatta's — to slow traffic and give people a safe place to cross.",
+    description: "Crossing the road in the Palm Beach shops (roughly 4th to 8th Avenue) is hard and unsafe for kids, families and older residents. This fund pays for what gets it over the line — independent pedestrian counts, a proper proposal to council and the campaign behind it — to win marked crossings like Coolangatta's.",
     category: "Transport", suburb: "palm-beach", source: "curated",
-    targetCents: 500000, raisedCents: 0,
+    targetCents: 350000, raisedCents: 0,
   },
   {
     id: "c-pb-footpaths",

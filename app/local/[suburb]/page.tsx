@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { MapPin, ArrowLeft } from "lucide-react";
+import { MapPin, ArrowLeft, Users } from "lucide-react";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Badge, Dot } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -116,6 +116,12 @@ export default async function SuburbPage({ params }: Params) {
             Real things locals have flagged that need fixing — the council should, but isn&apos;t. Back the ones you
             care about with your $1. Every dollar is a vote for what gets done first.
           </p>
+          {localCauses.length > 0 && (
+            <div className="mt-3 inline-flex items-center gap-2 text-xs text-accent bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1.5">
+              <Users className="w-3.5 h-3.5" />
+              Submitted by the community — sourced from local residents
+            </div>
+          )}
 
           {localCauses.length === 0 ? (
             <div className="mt-6 rounded-card border border-dashed border-border bg-white/60 p-8 text-center">
