@@ -193,6 +193,9 @@ export type ProjectCategory =
   | "Education"
   | "Youth Sport"
   | "Arts & Culture"
+  | "Environment"
+  | "Wildlife"
+  | "Parks"
   | "Personal"
   | "Other";
 
@@ -225,6 +228,9 @@ export const CATEGORY_COLOURS: Record<ProjectCategory, string> = {
   Education: "#0D9488",
   "Youth Sport": "#F97316",
   "Arts & Culture": "#A855F7",
+  Environment: "#0F9D8E",
+  Wildlife: "#B45309",
+  Parks: "#4D7C0F",
   Personal: "#EC4899",
   Other: "#71717A",
 };
@@ -233,5 +239,6 @@ export const ALL_CATEGORIES: ProjectCategory[] = [
   "Shelter", "Rent", "Food", "Utilities", "Security",
   "Beach Cleanup", "Mowing", "Painting", "Potholes",
   "Social Work", "Repairs", "Transport", "Medical", "Education",
-  "Youth Sport", "Arts & Culture", "Personal", "Other",
+  "Youth Sport", "Arts & Culture", "Environment", "Wildlife", "Parks",
+  "Personal", "Other",
 ];
