@@ -57,7 +57,11 @@ const SECTIONS: { heading: string; items: FAQ[] }[] = [
     items: [
       {
         q: "How much of my dollar actually reaches the cause?",
-        a: "90% of every donation funds local projects. 10% covers running costs — hosting, the part-time coordinator, the boring stuff. Before that split, Stripe takes its processing fee: on a $1 weekly charge that's about 30¢, which is why we give you the option to bundle weekly or fortnightly dollars into a single monthly charge — it's your choice, never automatic. Paying by BECS Direct Debit (bank-to-bank) is cheaper again. See the full per-plan fee table on the join page.",
+        a: "90% of every donation goes to causes; 10% covers running costs — hosting, the part-time coordinator, the boring stuff. Of that 90%, one tenth is ring-fenced for the coast-wide Emergency Fund and the rest funds your suburb's local causes. Before all that, Stripe takes its processing fee: on a $1 weekly charge that's about 30¢, which is why we let you bundle into a single larger charge — your choice, never automatic. BECS Direct Debit (bank-to-bank) is cheaper again.",
+      },
+      {
+        q: "What is the Emergency Fund?",
+        a: "Some things can't wait for a weekly vote. So 10% of every donation (after running costs) is set aside in a coast-wide Emergency Fund, ready to move fast for genuine crises — someone escaping family violence, a single parent suddenly unable to make rent, homelessness relief after a fire or flood, an urgent medical cost. Because emergencies are urgent and often sensitive, the trustees can release help at their discretion (rather than the public weekly vote), handled discreetly and with specialist services — but every grant is still logged on the Transparency page (amount and category, never identifying details). See the Emergency Fund page for the full list of what it covers.",
       },
       {
         q: "Why does Stripe take a fee at all?",

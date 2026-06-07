@@ -6,6 +6,7 @@ import { Badge, Dot } from "@/components/ui/Badge";
 import { SUBURBS } from "@/lib/suburbs";
 import { getSuburbTotals } from "@/lib/members";
 import { SuburbScene } from "@/components/suburb/SuburbScene";
+import { EmergencyFundBanner } from "@/components/EmergencyFundBanner";
 import { CATEGORY_COLOURS } from "@/lib/types";
 import { formatAUD } from "@/lib/data";
 
@@ -37,6 +38,8 @@ export default async function LocalIndex() {
           <span><strong className="text-ink tabular">{totalMembers.toLocaleString()}</strong> members</span>
           <span><strong className="text-ink tabular">{formatAUD(totalRaised)}</strong> raised locally</span>
         </div>
+
+        <EmergencyFundBanner className="mt-8" />
 
         <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {SUBURBS.map((s) => (

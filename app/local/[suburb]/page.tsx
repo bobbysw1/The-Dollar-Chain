@@ -10,6 +10,7 @@ import { getSuburbTotals } from "@/lib/members";
 import { listActiveCauses } from "@/lib/causes";
 import { SuburbScene } from "@/components/suburb/SuburbScene";
 import { CauseArt } from "@/components/causes/CauseArt";
+import { EmergencyFundBanner } from "@/components/EmergencyFundBanner";
 import { MOCK_PROJECTS, formatAUD, formatDate } from "@/lib/data";
 import { CATEGORY_COLOURS } from "@/lib/types";
 
@@ -51,6 +52,8 @@ export default async function SuburbPage({ params }: Params) {
         <Link href="/local" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink mb-6">
           <ArrowLeft className="w-3.5 h-3.5" /> All suburbs
         </Link>
+
+        <EmergencyFundBanner className="mb-8" />
 
         {/* COLOURFUL SCENE BANNER */}
         <div className="relative rounded-card overflow-hidden border border-border mb-10 h-44 sm:h-56">

@@ -26,9 +26,10 @@ export function SiteFooter() {
   return (
     <footer className="relative z-20 mt-24 border-t border-border bg-surface">
       <div className="max-w-6xl mx-auto px-6 py-8 text-sm text-muted flex flex-wrap items-center justify-between gap-4">
-        <span>© The Dollar Chain — 90% of every donation (after processing fees) funds local projects, 10% covers running costs. Made on the southern Gold Coast.</span>
+        <span>© The Dollar Chain — 90% of every donation (after processing fees) goes to causes: your suburb&apos;s local projects plus a coast-wide Emergency Fund. 10% covers running costs. Made on the southern Gold Coast.</span>
         <div className="flex items-center gap-4">
           <Link href="/local" className="hover:text-ink">Suburbs</Link>
+          <Link href="/emergency" className="hover:text-ink">Emergency Fund</Link>
           <Link href="/chain" className="hover:text-ink">Chain</Link>
           <Link href="/projects" className="hover:text-ink">Impact</Link>
           <Link href="/transparency" className="hover:text-ink">Transparency</Link>
