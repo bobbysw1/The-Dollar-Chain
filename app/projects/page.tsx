@@ -2,26 +2,33 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ChevronUp, Coins } from "lucide-react";
+import { Plus, ChevronUp, Coins, MapPin } from "lucide-react";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Dot, Badge } from "@/components/ui/Badge";
 import { CountUp } from "@/components/CountUp";
 import { CreditsBar } from "@/components/CreditsBar";
+import { CauseArt } from "@/components/causes/CauseArt";
 import { useMe } from "@/lib/useMe";
+import { SUBURBS, getSuburb } from "@/lib/suburbs";
 import { MOCK_PROJECTS, formatAUD, formatDate } from "@/lib/data";
 import { CATEGORY_COLOURS, ALL_CATEGORIES, type ProjectCategory } from "@/lib/types";
 
 const CATS: (ProjectCategory | "All")[] = ["All", ...ALL_CATEGORIES];
 
+type SuburbTotals = Record<string, { members: number; raisedCents: number }>;
+
 export default function ProjectsPage() {
   const [filter, setFilter] = useState<ProjectCategory | "All">("All");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [suburb, setSuburb] = useState<string>("all");
   const { me, refresh } = useMe();
-  const [stats, setStats] = useState({ raisedCents: 0, peopleHelped: 0, balanceCents: 0 });
+  const [stats, setStats] = useState<{ raisedCents: number; peopleHelped: number; balanceCents: number; suburbs?: SuburbTotals }>({ raisedCents: 0, peopleHelped: 0, balanceCents: 0 });
   useEffect(() => {
     fetch("/api/stats", { cache: "no-store" }).then((r) => r.json()).then(setStats).catch(() => {});
   }, []);
   const items = MOCK_PROJECTS.filter((p) => filter === "All" || p.category === filter);
+  const potCents = suburb === "all" ? stats.balanceCents : (stats.suburbs?.[suburb]?.raisedCents ?? 0);
+  const potLabel = suburb === "all" ? "across all suburbs" : `in ${getSuburb(suburb)?.name ?? suburb}`;
 
   return (
     <main className="min-h-screen bg-cream">
@@ -33,6 +40,19 @@ export default function ProjectsPage() {
             <CountUp to={stats.raisedCents / 100} prefix="$" /> raised —{" "}
             <CountUp to={stats.peopleHelped} /> {stats.peopleHelped === 1 ? "person" : "people"} directly helped
           </p>
+
+          {/* per-suburb pot selector */}
+          <div className="mt-5 flex items-center gap-2 text-sm">
+            <span className="text-muted inline-flex items-center gap-1.5"><MapPin className="w-4 h-4" /> See the pot for</span>
+            <select
+              value={suburb}
+              onChange={(e) => setSuburb(e.target.value)}
+              className="h-9 px-3 rounded-lg border border-border bg-white text-ink focus:outline-none focus:border-accent"
+            >
+              <option value="all">All suburbs</option>
+              {SUBURBS.map((sb) => <option key={sb.slug} value={sb.slug}>{sb.name}</option>)}
+            </select>
+          </div>
 
           <div className="mt-8 flex flex-wrap gap-2">
             {CATS.map((c) => (
@@ -106,13 +126,14 @@ export default function ProjectsPage() {
 
         <aside className="lg:sticky lg:top-6 self-start space-y-6">
           <div className="bg-white border border-border rounded-card p-6">
-            <div className="text-sm text-muted">This week's pot</div>
-            <div className="text-3xl font-semibold mt-1 tabular">{formatAUD(stats.balanceCents)}</div>
+            <div className="text-sm text-muted">In the pot {potLabel}</div>
+            <div className="text-3xl font-semibold mt-1 tabular">{formatAUD(potCents)}</div>
             <div className="text-xs text-muted mt-1">ready to deploy</div>
           </div>
-          <CreditsBar me={me} onChange={refresh} />
-          <VoteCard me={me} onChange={refresh} />
-          <SuggestionsCard me={me} onChange={refresh} />
+          {/* Voting is members-only */}
+          {me?.authenticated && <CreditsBar me={me} onChange={refresh} />}
+          {me?.authenticated && <VoteCard me={me} onChange={refresh} />}
+          <MemberCausesCard />
         </aside>
       </div>
       <SiteFooter />
@@ -217,97 +238,56 @@ function labelError(code: string) {
   }
 }
 
-function SuggestionsCard({ me, onChange }: { me: ReturnType<typeof useMe>["me"]; onChange: () => void }) {
+function MemberCausesCard() {
   const [items, setItems] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const r = await fetch("/api/suggestions", { cache: "no-store" });
-    const j = await r.json();
-    setItems(j.items ?? []);
+  useEffect(() => {
+    fetch("/api/causes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setItems((j.causes ?? []).filter((c: any) => c.source === "member")))
+      .catch(() => {});
   }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const upvote = async (id: string) => {
-    setError(null);
-    const r = await fetch("/api/vote", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind: "suggestion", id }),
-    });
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      setError(j.error || "Upvote failed");
-      return;
-    }
-    await load();
-    onChange();
-  };
-
-  const memberNumber = me?.memberNumber;
-  const credits = me?.credits ?? 0;
 
   return (
     <div className="bg-white border border-border rounded-card p-6">
       <div className="flex items-center justify-between mb-1">
         <div className="font-medium">Member causes</div>
-        <Link
-          href="/causes/new"
-          className="text-xs text-accent hover:underline inline-flex items-center gap-1"
-        >
+        <Link href="/causes/new" className="text-xs text-accent hover:underline inline-flex items-center gap-1">
           <Plus className="w-3 h-3" /> Add a cause
         </Link>
       </div>
       <div className="text-xs text-muted mb-4 flex items-center gap-1.5">
         <Coins className="w-3 h-3" />
-        Anything local — kid's sport, kits, surgery, beach work. Add one with photos &amp; a target; members vote.
+        Real local fixes raised by members. Open one to back it — your $1 is a vote.
       </div>
 
       {items.length === 0 ? (
         <p className="text-sm text-muted">No causes yet — <Link href="/causes/new" className="text-accent hover:underline">add the first</Link>.</p>
       ) : (
-        <ul className="space-y-2">
-          {items.map((s) => {
-            const hasVoted = memberNumber ? s.voters?.includes(memberNumber) : false;
-            const canUpvote = me?.authenticated && credits > 0 && !hasVoted;
-            return (
-              <li key={s.id} className="flex items-start gap-2 p-3 rounded-xl border border-border hover:border-ink/20 transition-colors">
-                <button
-                  onClick={() => upvote(s.id)}
-                  disabled={!canUpvote}
-                  aria-label={`Upvote ${s.title}`}
-                  className={`shrink-0 w-10 flex flex-col items-center justify-center py-1 rounded-lg border transition-colors ${
-                    hasVoted
-                      ? "bg-emerald-50 border-emerald-100 text-accent cursor-default"
-                      : canUpvote
-                        ? "border-border hover:border-accent hover:text-accent"
-                        : "border-border text-muted cursor-not-allowed"
-                  }`}
-                >
-                  <ChevronUp className="w-4 h-4" />
-                  <span className="text-xs font-medium tabular">{s.votes}</span>
-                </button>
-                <Link href={`/causes/${s.id}`} className="min-w-0 flex-1 group">
-                  {s.images?.[0] && (
+        <ul className="space-y-2.5">
+          {items.slice(0, 8).map((c) => (
+            <li key={c.id}>
+              <Link href={`/causes/${c.id}`} className="block group rounded-xl border border-border hover:border-ink/20 overflow-hidden transition-colors">
+                <div className="h-20 overflow-hidden border-b border-border">
+                  {c.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.images[0]} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5 border border-border" />
+                    <img src={c.images[0]} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <CauseArt category={c.category as ProjectCategory} className="w-full h-full" />
                   )}
-                  <div className="text-sm font-medium leading-snug group-hover:text-accent transition-colors">{s.title}</div>
-                  {s.description && (
-                    <div className="text-xs text-muted mt-0.5 line-clamp-2">{s.description}</div>
-                  )}
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted">
-                    <Badge tone="muted" className="!text-[10px] !py-0">{s.category}</Badge>
-                    <span>by #{s.suggestedBy}</span>
+                </div>
+                <div className="p-2.5">
+                  <div className="text-sm font-medium leading-snug group-hover:text-accent transition-colors">{c.title}</div>
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-muted">
+                    <Dot color={CATEGORY_COLOURS[c.category as ProjectCategory]} /> <span>{c.category}</span>
+                    {c.suburb && <span>· {getSuburb(c.suburb)?.name ?? c.suburb}</span>}
                   </div>
-                </Link>
-              </li>
-            );
-          })}
+                </div>
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
-
-      {error && <div className="mt-3 text-xs text-danger">{labelError(error)}</div>}
     </div>
   );
 }

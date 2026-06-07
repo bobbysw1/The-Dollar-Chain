@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getPublicStats } from "@/lib/members";
+import { getPublicStats, getSuburbTotals } from "@/lib/members";
 import { MOCK_PROJECTS } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const stats = await getPublicStats();
+  const [stats, suburbs] = await Promise.all([getPublicStats(), getSuburbTotals()]);
   const deployedCents = MOCK_PROJECTS.reduce((s, p) => s + p.amountCents, 0);
   return NextResponse.json({
     totalMembers: stats.total,
@@ -18,5 +18,6 @@ export async function GET() {
     balanceCents: stats.contributedCents - deployedCents,
     peopleHelped: MOCK_PROJECTS.length,
     suburbsBacked: stats.suburbsBacked,
+    suburbs,                                       // slug -> { members, raisedCents, donatedCents }
   });
 }
