@@ -11,6 +11,27 @@
 export const RUNNING_COST_PCT = 0.10;
 export const EMERGENCY_PCT = 0.10; // of the after-expenses amount
 
+/* Stripe's Australian card pricing: 1.75% + A$0.30 per successful charge,
+ * plus 10% GST on the fee. Used as an estimate whenever we don't (yet) have
+ * the exact fee back from Stripe's balance transaction. */
+export const STRIPE_PCT = 0.0175;
+export const STRIPE_FIXED_CENTS = 30;
+export const STRIPE_GST = 1.1;
+
+/** Best-guess Stripe processing fee on a gross charge, in cents. */
+export function estimateStripeFeeCents(grossCents: number): number {
+  if (grossCents <= 0) return 0;
+  return Math.round((grossCents * STRIPE_PCT + STRIPE_FIXED_CENTS) * STRIPE_GST);
+}
+
+/** What actually lands in the fund after Stripe's cut. Uses the real captured
+ *  fee when we have it, otherwise estimates it — so we never quietly show the
+ *  gross deposit as if it were the net. */
+export function netAfterFees(grossCents: number, feeCents?: number): number {
+  const fee = feeCents && feeCents > 0 ? feeCents : estimateStripeFeeCents(grossCents);
+  return Math.max(0, Math.round(grossCents) - fee);
+}
+
 export interface FundSplit {
   net: number;
   runningCosts: number;

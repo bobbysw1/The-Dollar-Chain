@@ -55,23 +55,35 @@ export async function POST(req: NextRequest) {
   const payment_method_types: ("card" | "au_becs_debit")[] =
     paymentMethod === "becs" ? ["au_becs_debit"] : ["card"];
 
-  // Custom amount → an inline weekly price; otherwise a pre-made plan price.
-  const line_items: Stripe.Checkout.SessionCreateParams["line_items"] = customWeekly
-    ? [{ price_data: { currency: "aud", unit_amount: customWeekly, recurring: { interval: "week" }, product: STRIPE_PRODUCT_ID }, quantity: 1 }]
-    : [{ price: priceIdFor(plan, tier), quantity: 1 }];
+  try {
+    // Custom amount → an inline weekly price; otherwise a pre-made plan price.
+    const line_items: Stripe.Checkout.SessionCreateParams["line_items"] = customWeekly
+      ? [{ price_data: { currency: "aud", unit_amount: customWeekly, recurring: { interval: "week" }, product: STRIPE_PRODUCT_ID }, quantity: 1 }]
+      : [{ price: priceIdFor(plan, tier), quantity: 1 }];
 
-  const session = await stripe().checkout.sessions.create({
-    mode: "subscription",
-    payment_method_types,
-    line_items,
-    customer_email: email,
-    // save_default_payment_method keeps the card on file for future renewals.
-    subscription_data: { metadata },
-    payment_method_collection: "always",
-    metadata,
-    success_url: `${siteUrl()}/api/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${siteUrl()}/join?canceled=1`,
-  });
+    const session = await stripe().checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types,
+      line_items,
+      customer_email: email,
+      // save_default_payment_method keeps the card on file for future renewals.
+      subscription_data: { metadata },
+      payment_method_collection: "always",
+      metadata,
+      success_url: `${siteUrl()}/api/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl()}/join?canceled=1`,
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    // Surface the real reason (e.g. "au_becs_debit is not activated for your
+    // account", or a missing price env var) instead of letting the route 500
+    // into a generic client-side "Network error".
+    const message = err instanceof Error ? err.message : "Could not start checkout.";
+    console.error("Checkout session create failed", { paymentMethod, plan, tier, message });
+    const becsHint = paymentMethod === "becs"
+      ? " If you're seeing this with Direct Debit, make sure BECS Direct Debit is activated on your Stripe account (Settings → Payment methods)."
+      : "";
+    return NextResponse.json({ error: `${message}${becsHint}` }, { status: 502 });
+  }
 }

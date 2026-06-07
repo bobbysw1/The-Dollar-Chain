@@ -11,6 +11,7 @@ import { ChainPerson } from "@/components/chain/ChainPerson";
 import { AvatarEditor } from "@/components/customise/AvatarEditor";
 import { CauseArt } from "@/components/causes/CauseArt";
 import { SUBURBS, getSuburb } from "@/lib/suburbs";
+import { fundSplit, netAfterFees } from "@/lib/fund";
 import {
   SKIN_TONES, SHIRT_COLOURS, HAIR_COLOURS, HAIR_STYLES, ACCESSORIES,
   CATEGORY_COLOURS, planMetaFor,
@@ -141,7 +142,12 @@ function ImpactSection({ member, causes }: { member: Member; causes: Cause[] }) 
   const helped = member.projectsHelped
     .map((id) => causes.find((c) => c.id === id))
     .filter(Boolean) as Cause[];
-  const net = Math.max(0, member.contributedCents - (member.feeCents ?? 0));
+  // Net = what lands in the fund after Stripe's fee ($0.30 + %). Estimate it if
+  // the exact fee hasn't been captured yet, so we never show the gross deposit.
+  const net = netAfterFees(member.contributedCents, member.feeCents);
+  // After the 10% running cost, this is what actually funds causes. The local
+  // pot is that minus the coast-wide Emergency Fund slice.
+  const split = fundSplit(net);
   const suburbName = member.dedicatedSuburb
     ? (SUBURBS.find((s) => s.slug === member.dedicatedSuburb)?.name ?? member.dedicatedSuburb)
     : "your suburb";
@@ -149,7 +155,7 @@ function ImpactSection({ member, causes }: { member: Member; causes: Cause[] }) 
     <Section icon={<Heart className="w-4 h-4" />} title="Your dollar so far">
       <div className="grid grid-cols-3 gap-3">
         <Stat label="You've given" value={fmt(member.contributedCents)} />
-        <Stat label="In the fund (after fees)" value={fmt(net)} />
+        <Stat label="Funding causes" value={fmt(split.afterExpenses)} sub="after fees & running costs" />
         <Stat label="Member since" value={new Date(member.joinedAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" })} />
       </div>
 
@@ -159,10 +165,11 @@ function ImpactSection({ member, causes }: { member: Member; causes: Cause[] }) 
           <span className="text-muted">Once your first payment clears, you&apos;ll see exactly where your money sits here.</span>
         ) : (
           <>
-            <span className="text-ink font-medium">{fmt(net)} of yours is in {suburbName}&apos;s pot.</span>{" "}
+            <span className="text-ink font-medium">{fmt(split.local)} of yours is in {suburbName}&apos;s pot</span>
+            <span className="text-muted">, plus {fmt(split.emergency)} in the coast-wide Emergency Fund. (Your {fmt(member.contributedCents)} less Stripe&apos;s fee and the 10% running cost.) </span>
             <span className="text-muted">
               {member.autoAllocate
-                ? "You're on auto-allocate, so it follows the chain's weekly vote. Nothing's been deployed yet — the moment the chain funds something, it'll show here and on the public Transparency page."
+                ? "Your pot follows the chain's weekly vote. Nothing's been deployed yet — the moment the chain funds something, it'll show here and on the public Transparency page."
                 : "It's earmarked across the causes you chose below. Nothing's been paid out yet — every payout will show here and on the public Transparency page."}
             </span>
           </>
@@ -531,11 +538,12 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-surface rounded-xl p-4">
       <div className="text-xl font-semibold tabular">{value}</div>
       <div className="text-xs text-muted mt-0.5">{label}</div>
+      {sub && <div className="text-[10px] text-muted/80 mt-0.5">{sub}</div>}
     </div>
   );
 }

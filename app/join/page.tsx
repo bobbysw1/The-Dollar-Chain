@@ -9,10 +9,16 @@ import { Button } from "@/components/ui/Button";
 import { ChainPerson } from "@/components/chain/ChainPerson";
 import { CustomiseYourPerson } from "@/components/customise/CustomiseYourPerson";
 import { useJoinStore } from "@/store/joinStore";
-import { PLANS, planMetaFor, feeFor, feeForAmount, keepPct, chargeFor, planHasBoost, type Plan, type PaymentMethod, type Tier } from "@/lib/types";
+import { PLANS, planMetaFor, feeFor, feeForAmount, keepPct, toCausesCents, chargeFor, planHasBoost, type Plan, type PaymentMethod, type Tier } from "@/lib/types";
 import { formatAUD } from "@/lib/data";
 import { SUBURBS, getSuburb } from "@/lib/suburbs";
 import { CreditCard, Building2, Sparkles, MapPin, RefreshCw } from "lucide-react";
+
+/** BECS Direct Debit is gated until it's activated on the Stripe account
+ *  (Dashboard → Settings → Payment methods → BECS Direct Debit, needs a
+ *  verified AU business profile). Flip to `true` once it's live — also revert
+ *  the default paymentMethod to "becs" in store/joinStore.ts. */
+const BECS_ENABLED = false;
 
 export default function JoinPage() {
   const s = useJoinStore();
@@ -79,8 +85,8 @@ function Step1() {
   const totalCharged = usingCustom ? customWeeklyCents : chargeFor(selected, tier);
   const unitLabel = usingCustom ? "week" : selected.unit;
   const fee = feeForAmount(totalCharged, paymentMethod);
-  // What lands with the chain after Stripe — donor-facing "to causes" figure.
-  const toCausesTotal = totalCharged - fee;
+  // What reaches causes — after Stripe's fee AND the 10% running cost.
+  const toCausesTotal = toCausesCents(totalCharged, fee);
 
   const coverOn = !usingCustom && tier === "boosted";
   const reachesPct = usingCustom
@@ -102,28 +108,38 @@ function Step1() {
             icon={<Building2 className="w-4 h-4" />}
             title="Bank (Direct Debit)"
             sub="Straight from your AU bank account"
-            fee="Cheapest — more reaches the cause"
+            fee={BECS_ENABLED ? "Cheapest — more reaches the cause" : "Coming soon — use card for now"}
             feeTone="good"
-            recommended
+            recommended={BECS_ENABLED}
+            disabled={!BECS_ENABLED}
+            badge={BECS_ENABLED ? undefined : "Coming soon"}
             selected={paymentMethod === "becs"}
-            onClick={() => set({ paymentMethod: "becs" })}
+            onClick={() => { if (BECS_ENABLED) set({ paymentMethod: "becs" }); }}
           />
           <MethodCard
             icon={<CreditCard className="w-4 h-4" />}
             title="Card"
             sub="Visa / Mastercard / Amex — instant"
             fee="Easy, but costs the cause a little more"
+            recommended={!BECS_ENABLED}
             selected={paymentMethod === "card"}
             onClick={() => set({ paymentMethod: "card" })}
           />
         </div>
         <div className="mt-3 flex items-start gap-2 text-xs text-muted p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
           <Building2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-accent" />
-          <span>
-            <strong className="text-ink">Direct debit is the kindest way to give.</strong> Banks charge us far
-            less than card networks do, so more of every dollar reaches the people who need it — it just takes a
-            few days to set up the first time. Cards are instant if you&apos;d rather.
-          </span>
+          {BECS_ENABLED ? (
+            <span>
+              <strong className="text-ink">Direct debit is the kindest way to give.</strong> Banks charge us far
+              less than card networks do, so more of every dollar reaches the people who need it — it just takes a
+              few days to set up the first time. Cards are instant if you&apos;d rather.
+            </span>
+          ) : (
+            <span>
+              <strong className="text-ink">Direct Debit is coming soon.</strong> We&apos;re finishing our bank
+              setup so we can offer the cheapest way to give — for now, card keeps things simple and instant.
+            </span>
+          )}
         </div>
       </Step>
 
@@ -210,7 +226,7 @@ function Step1() {
             {formatAUD(totalCharged)} <span className="text-white/80 text-base font-medium">/ {unitLabel}</span>
           </div>
           <div className="text-xs text-white/80 mt-0.5">
-            ~{reachesPct}% reaches the causes after fees · cancel any time
+            ~{reachesPct}% reaches the causes after fees &amp; the 10% running cost · cancel any time
           </div>
         </div>
         <Button size="lg" variant="secondary" onClick={next}>Continue →</Button>
@@ -349,28 +365,36 @@ function TierCard({ title, sub, footer, selected, onClick, highlight }: {
   );
 }
 
-function MethodCard({ icon, title, sub, fee, selected, onClick, recommended, feeTone }: {
+function MethodCard({ icon, title, sub, fee, selected, onClick, recommended, feeTone, disabled, badge }: {
   icon: React.ReactNode; title: string; sub: string; fee: string;
   selected: boolean; onClick: () => void; recommended?: boolean; feeTone?: "good" | "muted";
+  disabled?: boolean; badge?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
       className={`relative text-left p-4 rounded-card border transition-all ${
+        disabled ? "border-border bg-surface/60 opacity-60 cursor-not-allowed" :
         selected ? "border-accent ring-2 ring-accent/20" : recommended ? "border-accent/50" : "border-border hover:border-ink/30"
       }`}
     >
-      {recommended && (
+      {badge ? (
+        <span className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-muted text-white text-[10px] font-semibold uppercase tracking-wide">
+          {badge}
+        </span>
+      ) : recommended && (
         <span className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-accent text-white text-[10px] font-semibold uppercase tracking-wide">
           Recommended
         </span>
       )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 font-medium">
-          <span className="text-accent">{icon}</span>{title}
+          <span className={disabled ? "text-muted" : "text-accent"}>{icon}</span>{title}
         </div>
-        {selected && (
+        {selected && !disabled && (
           <span className="w-5 h-5 rounded-full bg-accent text-white grid place-items-center">
             <Check className="w-3 h-3" />
           </span>
@@ -403,7 +427,7 @@ function FeeTable({ currentPlan, method }: { currentPlan: Plan; method: PaymentM
       <div className="px-5 py-3 border-b border-border bg-surface text-sm font-medium flex items-center justify-between flex-wrap gap-2">
         <span>Fee comparison — what reaches your causes per charge</span>
         <span className="text-xs text-muted font-normal">
-          Card: 1.75% + 30¢ +GST · BECS: 1% + 30¢ (cap $3.50) +GST
+          Card: 1.75% + 30¢ +GST · BECS: 1% + 30¢ (cap $3.50) +GST · then 10% running cost
         </span>
       </div>
       <table className="w-full text-sm">
@@ -430,11 +454,11 @@ function FeeTable({ currentPlan, method }: { currentPlan: Plan; method: PaymentM
                 <td className="px-5 py-2.5 text-right tabular">{formatAUD(p.chargeCents)}</td>
                 <td className={`px-5 py-2.5 text-right tabular ${method === "card" ? "text-ink" : "text-muted"}`}>−{formatAUD(p.cardFeeCents)}</td>
                 <td className={`px-5 py-2.5 text-right tabular ${method === "card" ? "font-medium" : "text-muted"}`}>
-                  {formatAUD(p.chargeCents - p.cardFeeCents)} <span className="text-muted text-xs">({cardPct}%)</span>
+                  {formatAUD(toCausesCents(p.chargeCents, p.cardFeeCents))} <span className="text-muted text-xs">({cardPct}%)</span>
                 </td>
                 <td className={`px-5 py-2.5 text-right tabular ${method === "becs" ? "text-ink" : "text-muted"}`}>−{formatAUD(p.becsFeeCents)}</td>
                 <td className={`px-5 py-2.5 text-right tabular ${method === "becs" ? "font-medium" : "text-muted"}`}>
-                  {formatAUD(p.chargeCents - p.becsFeeCents)} <span className="text-muted text-xs">({becsPct}%)</span>
+                  {formatAUD(toCausesCents(p.chargeCents, p.becsFeeCents))} <span className="text-muted text-xs">({becsPct}%)</span>
                 </td>
               </tr>
             );
@@ -493,7 +517,9 @@ function Step3() {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const j = await r.json();
+      // Tolerate a non-JSON body (e.g. an unexpected 500) so a real error never
+      // gets swallowed into a misleading "Network error".
+      const j = await r.json().catch(() => ({} as { url?: string; error?: string }));
       if (r.ok && j.url) { window.location.href = j.url; return; }
 
       // Stripe not configured yet → simulate the donation so the flow works end-to-end.
@@ -502,16 +528,17 @@ function Step3() {
           method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const dj = await dev.json();
+        const dj = await dev.json().catch(() => ({} as { redirect?: string; error?: string }));
         if (dev.ok && dj.redirect) { window.location.href = dj.redirect; return; }
         setError(dj.error || "Couldn't complete sign-up.");
         setBusy(false);
         return;
       }
-      setError(j.error || "Couldn't start checkout.");
+      setError(j.error || `Couldn't start checkout (error ${r.status}).`);
       setBusy(false);
     } catch (e) {
-      setError("Network error");
+      // Only genuine fetch failures (offline, DNS, CORS) land here now.
+      setError("Network error — check your connection and try again.");
       setBusy(false);
     }
   };

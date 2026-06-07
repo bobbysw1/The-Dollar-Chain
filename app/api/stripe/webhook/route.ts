@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { getMemberByCustomerId, upsertMemberFromCheckout, updateMember, setMemberActive } from "@/lib/members";
 import { grantCredit } from "@/lib/credits";
+import { estimateStripeFeeCents } from "@/lib/fund";
 import type { Plan } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
             if (bt && typeof bt !== "string") feeCents = bt.fee ?? 0;
           }
         } catch { /* fall through to estimate */ }
-        if (!feeCents) feeCents = Math.round((paid * 0.0175 + 30) * 1.1); // AU card estimate
+        if (!feeCents) feeCents = estimateStripeFeeCents(paid); // AU card estimate
 
         await updateMember(member.number, {
           contributedCents: member.contributedCents + paid,

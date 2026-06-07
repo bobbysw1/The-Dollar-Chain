@@ -30,7 +30,9 @@ const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.lengt
 
 export const useJoinStore = create<JoinState>((set, get) => ({
   plan: "monthly",
-  paymentMethod: "becs",
+  // Card by default while BECS Direct Debit activation is pending on Stripe.
+  // Flip back to "becs" once it's enabled (see BECS_ENABLED in app/join/page).
+  paymentMethod: "card",
   tier: "boosted",
   customWeeklyCents: 0,
   displayName: "",

@@ -2,6 +2,7 @@ import { readJSON, writeJSON, withLock } from "./store";
 import type { Plan, PersonAppearance, Allocation } from "./types";
 import { SKIN_TONES, SHIRT_COLOURS, HAIR_COLOURS } from "./types";
 import { AUTO_ALLOCATE_CAUSE_ID } from "./causes";
+import { estimateStripeFeeCents } from "./fund";
 
 const FILE = "members.json";
 
@@ -260,7 +261,12 @@ export async function getPublicStats() {
   const all = Object.values(file.byNumber);
   const active = all.filter((m) => m.active);
   const gross = all.reduce((s, m) => s + m.contributedCents, 0);
-  const fees = all.reduce((s, m) => s + (m.feeCents ?? 0), 0);
+  // Use the real captured fee where we have it; estimate it otherwise so the
+  // net figure is never just the gross masquerading as "in the fund".
+  const fees = all.reduce(
+    (s, m) => s + (m.feeCents && m.feeCents > 0 ? m.feeCents : estimateStripeFeeCents(m.contributedCents)),
+    0,
+  );
   return {
     total: all.length,
     active: active.length,
@@ -280,7 +286,8 @@ export async function getSuburbTotals(): Promise<Record<string, { members: numbe
   for (const m of Object.values(file.byNumber)) {
     const slug = m.dedicatedSuburb;
     if (!slug) continue;
-    const net = Math.max(0, m.contributedCents - (m.feeCents ?? 0));
+    const fee = m.feeCents && m.feeCents > 0 ? m.feeCents : estimateStripeFeeCents(m.contributedCents);
+    const net = Math.max(0, m.contributedCents - fee);
     const e = (out[slug] ||= { members: 0, raisedCents: 0, donatedCents: 0 });
     e.members += 1;
     e.raisedCents += net;

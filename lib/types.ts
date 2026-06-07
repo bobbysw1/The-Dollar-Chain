@@ -1,3 +1,5 @@
+import { RUNNING_COST_PCT } from "./fund";
+
 export type SkinTone = string;
 export type HairStyle = "short" | "long" | "curly" | "bun" | "buzz" | "none";
 export type Accessory = "cap" | "beanie" | "glasses" | "sunglasses" | "bow" | "earrings" | "moustache" | "freckles";
@@ -124,12 +126,24 @@ export const feeForAmount = (amountCents: number, m: PaymentMethod) =>
 export const feeFor = (p: PlanMeta, m: PaymentMethod) =>
   m === "card" ? p.cardFeeCents : p.becsFeeCents;
 
-/** % of the year's $52 that reaches causes after the chosen method's fees.
- *  Because each charge is identical, the per-charge % equals the annual %. */
+/** Dollars from one charge that actually reach causes: after the processing
+ *  fee, then after the 10% it costs to run the site. */
+export const toCausesCents = (chargeCents: number, feeCents: number) =>
+  Math.max(0, Math.round((chargeCents - feeCents) * (1 - RUNNING_COST_PCT)));
+
+/** % of your donation that reaches causes — after the payment fee AND the 10%
+ *  running cost. Covering the fee is defined as landing your *full* donation in
+ *  the fund, so a covered charge is a clean "100% in the fund − 10% running
+ *  costs = 90% to causes" regardless of the payment method. */
 export const keepPct = (p: PlanMeta, m: PaymentMethod, t: Tier = "standard") => {
+  const base = p.chargeCents; // the donation the giver thinks of as "theirs"
   const charge = chargeFor(p, t);
   const fee = feeForAmount(charge, m);
-  return Math.round(((charge - fee) / charge) * 100);
+  // What lands in the fund relative to the base donation. Covering the fee is
+  // meant to land the whole donation, so we cap at the base (never >100%).
+  const inFund = t === "boosted" ? base : Math.min(base, charge - fee);
+  const toCauses = inFund * (1 - RUNNING_COST_PCT);
+  return Math.round((toCauses / base) * 100);
 };
 
 export const planMetaFor = (id: Plan) => PLANS.find((p) => p.id === id)!;
