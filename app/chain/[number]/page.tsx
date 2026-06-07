@@ -7,6 +7,8 @@ import { Badge, Dot } from "@/components/ui/Badge";
 import { formatAUD, formatDate } from "@/lib/data";
 import { planMetaFor } from "@/lib/types";
 import { getMemberByNumber } from "@/lib/members";
+import { listActiveCauses } from "@/lib/causes";
+import { CauseArt } from "@/components/causes/CauseArt";
 
 interface Params { params: { number: string } }
 
@@ -24,7 +26,16 @@ export default async function MemberPage({ params }: Params) {
   const n = parseInt(params.number, 10);
   if (!n || n < 1) notFound();
   const rec = await getMemberByNumber(n);
+
+  const causes = rec ? await listActiveCauses() : [];
+  const backs = rec && !rec.autoAllocate
+    ? rec.allocations
+        .map((a) => { const c = causes.find((x) => x.id === a.causeId); return c ? { cause: c, pct: a.pct } : null; })
+        .filter((x): x is { cause: typeof causes[number]; pct: number } => !!x)
+    : [];
+
   const member = rec && {
+    autoAllocate: rec.autoAllocate,
     number: rec.number,
     displayName: rec.displayName,
     isActive: rec.active,
@@ -104,16 +115,41 @@ export default async function MemberPage({ params }: Params) {
           {member.city && <Row label="From" value={member.city} />}
         </dl>
 
-        {member.projectsHelped.length > 0 && (
-          <div className="mt-8">
-            <div className="text-sm text-muted mb-2">Has helped fund:</div>
-            <div className="flex flex-wrap gap-2">
-              {member.projectsHelped.map((p) => (
-                <Badge key={p}>{p}</Badge>
+        {/* What #N backs */}
+        <div className="mt-8">
+          <div className="text-sm text-muted mb-3">#{member.number} backs</div>
+          {member.autoAllocate ? (
+            <div className="rounded-card border border-border bg-white p-5 flex items-center gap-4">
+              <span className="w-12 h-12 rounded-xl bg-emerald-50 text-accent grid place-items-center text-2xl shrink-0">⛓</span>
+              <div>
+                <div className="font-medium">Wherever it&apos;s needed most</div>
+                <div className="text-sm text-muted">Their dollar joins the pot and follows the chain&apos;s weekly vote.</div>
+              </div>
+            </div>
+          ) : backs.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {backs.map(({ cause, pct }) => (
+                <Link key={cause.id} href={`/causes/${cause.id}`}
+                  className="group rounded-card border border-border bg-white overflow-hidden hover:border-ink/30 transition-colors">
+                  <div className="aspect-[16/10] overflow-hidden border-b border-border">
+                    {cause.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={cause.images[0]} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <CauseArt category={cause.category} className="w-full h-full" />
+                    )}
+                  </div>
+                  <div className="p-3 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium leading-snug group-hover:text-accent transition-colors">{cause.title}</span>
+                    <span className="text-xs font-mono tabular text-muted shrink-0">{pct}%</span>
+                  </div>
+                </Link>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-sm text-muted">Not set yet.</p>
+          )}
+        </div>
 
         <div className="mt-12 text-center">
           <Link href="/chain" className="text-accent hover:underline text-sm">

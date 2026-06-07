@@ -28,7 +28,7 @@ interface Member {
   displayName?: string; city?: string; dedicatedSuburb?: string; notify: boolean;
   avatar: PersonAppearance; autoAllocate: boolean; allocations: Allocation[];
   referralCode: string; referralCount: number;
-  contributedCents: number; projectsHelped: string[]; active: boolean;
+  contributedCents: number; feeCents?: number; projectsHelped: string[]; active: boolean;
   stripeCustomerId?: string;
 }
 
@@ -141,13 +141,34 @@ function ImpactSection({ member, causes }: { member: Member; causes: Cause[] }) 
   const helped = member.projectsHelped
     .map((id) => causes.find((c) => c.id === id))
     .filter(Boolean) as Cause[];
+  const net = Math.max(0, member.contributedCents - (member.feeCents ?? 0));
+  const suburbName = member.dedicatedSuburb
+    ? (SUBURBS.find((s) => s.slug === member.dedicatedSuburb)?.name ?? member.dedicatedSuburb)
+    : "your suburb";
   return (
     <Section icon={<Heart className="w-4 h-4" />} title="Your dollar so far">
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Contributed" value={fmt(member.contributedCents)} />
-        <Stat label="Projects helped" value={String(member.projectsHelped.length)} />
+        <Stat label="You've given" value={fmt(member.contributedCents)} />
+        <Stat label="In the fund (after fees)" value={fmt(net)} />
         <Stat label="Member since" value={new Date(member.joinedAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" })} />
       </div>
+
+      {/* Where the money is right now — honest, transparent */}
+      <div className="mt-4 p-4 rounded-xl bg-emerald-50/60 border border-emerald-100 text-sm">
+        {member.contributedCents === 0 ? (
+          <span className="text-muted">Once your first payment clears, you&apos;ll see exactly where your money sits here.</span>
+        ) : (
+          <>
+            <span className="text-ink font-medium">{fmt(net)} of yours is in {suburbName}&apos;s pot.</span>{" "}
+            <span className="text-muted">
+              {member.autoAllocate
+                ? "You're on auto-allocate, so it follows the chain's weekly vote. Nothing's been deployed yet — the moment the chain funds something, it'll show here and on the public Transparency page."
+                : "It's earmarked across the causes you chose below. Nothing's been paid out yet — every payout will show here and on the public Transparency page."}
+            </span>
+          </>
+        )}
+      </div>
+
       {helped.length > 0 && (
         <div className="mt-4">
           <div className="text-sm text-muted mb-2">You've helped fund:</div>
@@ -160,11 +181,6 @@ function ImpactSection({ member, causes }: { member: Member; causes: Cause[] }) 
           </div>
         </div>
       )}
-      <p className="mt-4 text-xs text-muted">
-        {member.notify
-          ? "We'll email you each month with exactly where your money went and how many people the chain helped."
-          : "Turn on monthly emails below to get a note each month showing where your money went."}
-      </p>
     </Section>
   );
 }
@@ -220,7 +236,7 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
         <TierToggle
           title="Auto-allocate"
-          sub="We put it where it's needed most, following the weekly vote."
+          sub="Let the chain's weekly vote decide."
           selected={auto}
           onClick={() => setAuto(true)}
         />
@@ -231,6 +247,21 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
           onClick={() => setAuto(false)}
         />
       </div>
+
+      {auto && (
+        <div className="mb-5 p-4 rounded-xl border border-border bg-surface text-sm space-y-2">
+          <div className="font-medium text-ink">How auto-allocate works</div>
+          <ol className="text-muted space-y-1.5 list-decimal pl-4">
+            <li>Your dollar (after fees) joins your suburb&apos;s shared pot.</li>
+            <li>Each week, members vote on which local cause that pot should fund.</li>
+            <li>The most-voted cause gets paid that week — and it&apos;s logged on the public <Link href="/transparency" className="text-accent hover:underline">Transparency</Link> page with the amount and date.</li>
+          </ol>
+          <p className="text-muted">
+            Nothing is hidden and nothing is skimmed beyond the stated 10% running costs. Prefer to direct it
+            yourself? Switch to <button onClick={() => setAuto(false)} className="text-accent hover:underline">I&apos;ll choose</button>.
+          </p>
+        </div>
+      )}
 
       {!auto && (
         <div className="space-y-4">
@@ -245,9 +276,9 @@ function AllocationSection({ member, causes, onChange }: { member: Member; cause
                   <button onClick={() => toggleCause(c.id)} className="block w-full text-left">
                     {c.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.images[0]} alt="" className="w-full h-24 object-cover" />
+                      <img src={c.images[0]} alt="" className="w-full aspect-[16/10] object-cover" />
                     ) : (
-                      <CauseArt category={c.category as ProjectCategory} className="w-full h-24" />
+                      <CauseArt category={c.category as ProjectCategory} className="w-full aspect-[16/10]" />
                     )}
                     <div className="flex items-start gap-2 p-3">
                       <span className={`mt-0.5 w-4 h-4 rounded grid place-items-center text-[10px] shrink-0 ${on ? "bg-accent text-white" : "border border-border text-transparent"}`}>✓</span>

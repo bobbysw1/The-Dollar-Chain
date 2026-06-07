@@ -265,10 +265,10 @@ function MemberCausesCard() {
         <p className="text-sm text-muted">No causes yet — <Link href="/causes/new" className="text-accent hover:underline">add the first</Link>.</p>
       ) : (
         <ul className="space-y-2.5">
-          {items.slice(0, 8).map((c) => (
+          {items.slice(0, 5).map((c) => (
             <li key={c.id}>
               <Link href={`/causes/${c.id}`} className="block group rounded-xl border border-border hover:border-ink/20 overflow-hidden transition-colors">
-                <div className="h-20 overflow-hidden border-b border-border">
+                <div className="aspect-[16/10] overflow-hidden border-b border-border">
                   {c.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.images[0]} alt="" className="w-full h-full object-cover" />
@@ -287,6 +287,11 @@ function MemberCausesCard() {
             </li>
           ))}
         </ul>
+      )}
+      {items.length > 5 && (
+        <Link href="/local/palm-beach" className="mt-3 inline-block text-xs text-accent hover:underline">
+          See all {items.length} causes →
+        </Link>
       )}
     </div>
   );

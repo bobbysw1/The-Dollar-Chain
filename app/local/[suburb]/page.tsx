@@ -137,7 +137,7 @@ export default async function SuburbPage({ params }: Params) {
                   return (
                     <Link key={c.id} href={`/causes/${c.id}`}
                       className="group bg-white border border-border rounded-card overflow-hidden hover:border-ink/30 hover:-translate-y-0.5 transition-all">
-                      <div className="h-32 overflow-hidden border-b border-border">
+                      <div className="aspect-[16/10] overflow-hidden border-b border-border">
                         {c.images?.[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={c.images[0]} alt="" className="w-full h-full object-cover" />
