@@ -288,6 +288,8 @@ function PaymentsTab() {
   const [totals, setTotals] = useState<{ gross: number; fee: number; net: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/payments", { cache: "no-store" })
@@ -297,10 +299,39 @@ function PaymentsTab() {
       .finally(() => setLoading(false));
   }, []);
 
+  const sync = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const r = await fetch("/api/admin/reconcile", { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) setSyncMsg(`Synced ${j.reconciled} member${j.reconciled === 1 ? "" : "s"} — ${formatAUD(j.totalCents ?? 0)} total contributions.`);
+      else setSyncMsg(j.error || "Sync failed.");
+    } catch {
+      setSyncMsg("Sync failed — network error.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">Payments</h1>
-      <p className="text-muted text-sm mb-6">Live from Stripe — every charge, the fee Stripe took, and what actually landed.</p>
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h1 className="text-2xl font-semibold">Payments</h1>
+        <button
+          onClick={sync}
+          disabled={syncing}
+          className="shrink-0 text-sm px-3 py-1.5 rounded-full border border-border hover:bg-surface disabled:opacity-50"
+        >
+          {syncing ? "Syncing…" : "Sync contributions from Stripe"}
+        </button>
+      </div>
+      <p className="text-muted text-sm mb-2">Live from Stripe — every charge, the fee Stripe took, and what actually landed.</p>
+      <p className="text-muted text-xs mb-4">
+        If a member shows $0 despite paying, hit <strong>Sync</strong> — it recomputes every member&apos;s
+        contribution from Stripe&apos;s paid invoices (fixes anything the webhook missed).
+      </p>
+      {syncMsg && <p className="text-sm mb-4 text-ink">{syncMsg}</p>}
 
       {totals && (
         <div className="grid grid-cols-3 gap-3 mb-6">

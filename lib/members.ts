@@ -3,6 +3,7 @@ import type { Plan, PersonAppearance, Allocation } from "./types";
 import { SKIN_TONES, SHIRT_COLOURS, HAIR_COLOURS } from "./types";
 import { AUTO_ALLOCATE_CAUSE_ID } from "./causes";
 import { estimateStripeFeeCents } from "./fund";
+import { stripe, STRIPE_CONFIGURED } from "./stripe";
 
 const FILE = "members.json";
 
@@ -436,6 +437,60 @@ export async function ensureDevMember(number: number): Promise<MemberRecord> {
     await writeJSON(FILE, file);
     return record;
   });
+}
+
+/** Read a member's TRUE contribution straight from Stripe — the sum of their
+ *  paid invoices — and write it as the absolute total. Idempotent, and it
+ *  repairs anything the webhook missed (e.g. an `invoice.payment_succeeded`
+ *  that arrived before the member existed, or a webhook that wasn't delivering).
+ *  Returns the reconciled totals, or null if the member has no Stripe customer. */
+export async function reconcileMemberFromStripe(
+  number: number,
+): Promise<{ contributedCents: number; feeCents: number } | null> {
+  if (!STRIPE_CONFIGURED) return null;
+  const member = await getMemberByNumber(number);
+  if (!member?.stripeCustomerId) return null;
+
+  let contributedCents = 0;
+  let feeCents = 0;
+  // Auto-paginates across all paid invoices for this customer.
+  for await (const inv of stripe().invoices.list({
+    customer: member.stripeCustomerId,
+    status: "paid",
+    limit: 100,
+    expand: ["data.charge.balance_transaction"],
+  })) {
+    const paid = inv.amount_paid ?? 0;
+    if (paid <= 0) continue;
+    contributedCents += paid;
+    const charge = (inv as unknown as {
+      charge?: string | { balance_transaction?: string | { fee?: number } };
+    }).charge;
+    const bt = charge && typeof charge !== "string" ? charge.balance_transaction : undefined;
+    feeCents += bt && typeof bt !== "string" && typeof bt.fee === "number"
+      ? bt.fee
+      : estimateStripeFeeCents(paid);
+  }
+
+  await updateMember(number, { contributedCents, feeCents });
+  return { contributedCents, feeCents };
+}
+
+/** Reconcile every member that has a Stripe customer. Returns a per-member
+ *  summary — used by the admin backfill to repair historical $0 records. */
+export async function reconcileAllMembersFromStripe(): Promise<
+  { number: number; contributedCents: number; feeCents: number }[]
+> {
+  const file = await load();
+  const numbers = Object.values(file.byNumber)
+    .filter((m) => m.stripeCustomerId)
+    .map((m) => m.number);
+  const out: { number: number; contributedCents: number; feeCents: number }[] = [];
+  for (const n of numbers) {
+    const r = await reconcileMemberFromStripe(n);
+    if (r) out.push({ number: n, ...r });
+  }
+  return out;
 }
 
 /** Dev/testing: simulate a donation creating a pending member (no Stripe). */

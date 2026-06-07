@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
-import { getMemberByCustomerId, upsertMemberFromCheckout, updateMember, setMemberActive } from "@/lib/members";
+import { getMemberByCustomerId, upsertMemberFromCheckout, updateMember, setMemberActive, reconcileMemberFromStripe } from "@/lib/members";
 import { grantCredit } from "@/lib/credits";
-import { estimateStripeFeeCents } from "@/lib/fund";
 import type { Plan } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,7 +34,11 @@ export async function POST(req: NextRequest) {
         const email = s.customer_details?.email || s.customer_email;
         const plan = (s.metadata?.plan as Plan) || "weekly";
         if (customerId && subscriptionId && email) {
-          await upsertMemberFromCheckout({ email, plan, stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+          const member = await upsertMemberFromCheckout({ email, plan, stripeCustomerId: customerId, stripeSubscriptionId: subscriptionId });
+          // Capture the contribution now (covers an invoice.payment_succeeded
+          // that arrived before this member existed, and the case where the
+          // user never returns to the success page).
+          await reconcileMemberFromStripe(member.number);
         }
         break;
       }
@@ -51,25 +54,12 @@ export async function POST(req: NextRequest) {
         const paid = inv.amount_paid ?? 0;
         await grantCredit(member.number, event.id, Math.floor(paid / 100));
 
-        // Capture Stripe's actual fee on this charge so our "raised" figure is
-        // honest (net = what really lands in the fund). Fall back to an estimate.
-        let feeCents = 0;
-        try {
-          const invCharge = (inv as unknown as { charge?: string | { id?: string } }).charge;
-          const chargeId = typeof invCharge === "string" ? invCharge : invCharge?.id;
-          if (chargeId) {
-            const charge = await stripe().charges.retrieve(chargeId, { expand: ["balance_transaction"] });
-            const bt = charge.balance_transaction;
-            if (bt && typeof bt !== "string") feeCents = bt.fee ?? 0;
-          }
-        } catch { /* fall through to estimate */ }
-        if (!feeCents) feeCents = estimateStripeFeeCents(paid); // AU card estimate
-
-        await updateMember(member.number, {
-          contributedCents: member.contributedCents + paid,
-          feeCents: (member.feeCents ?? 0) + feeCents,
-          active: true,
-        });
+        // Recompute contribution + fees from Stripe's record of all paid
+        // invoices (absolute, idempotent) rather than adding a delta — so a
+        // redelivered event or an out-of-order success-route reconcile can
+        // never double-count. Mark them active either way.
+        await reconcileMemberFromStripe(member.number);
+        await updateMember(member.number, { active: true });
         break;
       }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, siteUrl } from "@/lib/stripe";
-import { upsertMemberFromCheckout } from "@/lib/members";
+import { upsertMemberFromCheckout, reconcileMemberFromStripe } from "@/lib/members";
 import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -38,6 +38,15 @@ export async function GET(req: NextRequest) {
     avatar,
     referredByCode: m.referredByCode || undefined,
   });
+
+  // Record their first payment now from Stripe directly, so their contribution
+  // shows immediately even if the webhook is slow or misconfigured. The webhook
+  // remains the source of truth for later renewals; both are idempotent.
+  try {
+    await reconcileMemberFromStripe(member.number);
+  } catch (err) {
+    console.error("Initial reconcile failed", member.number, err);
+  }
 
   const token = createSessionToken(member.number);
   const res = NextResponse.redirect(`${siteUrl()}/join/welcome?n=${member.number}`);
