@@ -21,8 +21,14 @@ export async function POST(req: NextRequest) {
     suburb?: string;
     images?: string[];
     targetCents?: number;
+    lat?: number;
+    lng?: number;
+    locationLabel?: string;
   };
   if (!body.title?.trim()) return NextResponse.json({ error: "missing_title" }, { status: 400 });
+
+  const validCoord = typeof body.lat === "number" && typeof body.lng === "number"
+    && Math.abs(body.lat) <= 90 && Math.abs(body.lng) <= 180;
 
   const images = Array.isArray(body.images)
     ? body.images.filter((u) => typeof u === "string" && u.startsWith("http")).slice(0, 3)
@@ -39,6 +45,9 @@ export async function POST(req: NextRequest) {
     suburb: body.suburb || undefined,
     images,
     targetCents,
+    lat: validCoord ? body.lat : undefined,
+    lng: validCoord ? body.lng : undefined,
+    locationLabel: body.locationLabel ? body.locationLabel.trim().slice(0, 120) : undefined,
     suggestedBy: memberNumber,
   });
   return NextResponse.json({ item });

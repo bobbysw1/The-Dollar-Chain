@@ -15,6 +15,10 @@ export interface Suggestion {
   images?: string[];
   /** Fundraising target in cents, if set. */
   targetCents?: number;
+  /** Geotag (OpenStreetMap). */
+  lat?: number;
+  lng?: number;
+  locationLabel?: string;
   /** Moderation state — members submit as "pending"; admin approves. */
   status: CauseStatus;
   suggestedBy: number;
@@ -65,6 +69,9 @@ export async function addSuggestion(input: {
   suburb?: string;
   images?: string[];
   targetCents?: number;
+  lat?: number;
+  lng?: number;
+  locationLabel?: string;
   suggestedBy: number;
 }): Promise<Suggestion> {
   return withLock(FILE, async () => {
@@ -77,6 +84,9 @@ export async function addSuggestion(input: {
       suburb: input.suburb,
       images: (input.images ?? []).slice(0, 3),
       targetCents: input.targetCents,
+      lat: input.lat,
+      lng: input.lng,
+      locationLabel: input.locationLabel,
       status: "pending",
       suggestedBy: input.suggestedBy,
       createdAt: new Date().toISOString(),

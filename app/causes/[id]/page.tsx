@@ -5,6 +5,7 @@ import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Dot, Badge } from "@/components/ui/Badge";
 import { BackCauseButton } from "@/components/causes/BackCauseButton";
 import { CauseArt } from "@/components/causes/CauseArt";
+import { CauseMap } from "@/components/causes/CauseMap";
 import { getCause } from "@/lib/causes";
 import { getSuburb } from "@/lib/suburbs";
 import { formatAUD } from "@/lib/data";
@@ -80,6 +81,14 @@ export default async function CausePage({ params }: Params) {
           <p className="mt-6 text-sm text-muted inline-flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> Suggested by member #{cause.suggestedBy}
           </p>
+        )}
+
+        {/* Where it is */}
+        {typeof cause.lat === "number" && typeof cause.lng === "number" && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-3">Where</h2>
+            <CauseMap lat={cause.lat} lng={cause.lng} label={cause.locationLabel} />
+          </div>
         )}
 
         {/* CTA */}

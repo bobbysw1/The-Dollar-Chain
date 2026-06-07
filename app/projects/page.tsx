@@ -289,7 +289,7 @@ function MemberCausesCard() {
         </ul>
       )}
       {items.length > 5 && (
-        <Link href="/local/palm-beach" className="mt-3 inline-block text-xs text-accent hover:underline">
+        <Link href="/causes" className="mt-3 inline-block text-xs text-accent hover:underline">
           See all {items.length} causes →
         </Link>
       )}

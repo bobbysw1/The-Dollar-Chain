@@ -2,9 +2,10 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, X, ShieldCheck, ArrowLeft, Target } from "lucide-react";
+import { Upload, X, ShieldCheck, ArrowLeft, Target, MapPin, LocateFixed } from "lucide-react";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Button } from "@/components/ui/Button";
+import { CauseMap } from "@/components/causes/CauseMap";
 import { useMe } from "@/lib/useMe";
 import { SUBURBS } from "@/lib/suburbs";
 import { ALL_CATEGORIES, type ProjectCategory } from "@/lib/types";
@@ -20,6 +21,11 @@ export default function NewCausePage() {
   const [suburb, setSuburb] = useState("");
   const [target, setTarget] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [locationLabel, setLocationLabel] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoErr, setGeoErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +48,43 @@ export default function NewCausePage() {
     }
   };
 
+  const geocode = async () => {
+    if (!locationLabel.trim()) { setGeoErr("Type a street, landmark or address first."); return; }
+    setGeoBusy(true); setGeoErr(null);
+    try {
+      const q = encodeURIComponent(`${locationLabel}, Gold Coast QLD Australia`);
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`, {
+        headers: { "Accept": "application/json" },
+      });
+      const j = await r.json();
+      if (j[0]) { setLat(parseFloat(j[0].lat)); setLng(parseFloat(j[0].lon)); }
+      else setGeoErr("Couldn't find that spot — try a nearby street/landmark, or use your current location.");
+    } catch {
+      setGeoErr("Map lookup failed — check your connection.");
+    } finally {
+      setGeoBusy(false);
+    }
+  };
+
+  const useMyLocation = () => {
+    setGeoErr(null);
+    if (!navigator.geolocation) { setGeoErr("Your browser can't share location."); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLat(pos.coords.latitude); setLng(pos.coords.longitude); },
+      () => setGeoErr("Couldn't get your location — allow location access, or type an address."),
+    );
+  };
+
   const submit = async () => {
     setBusy(true); setError(null);
     try {
       const targetCents = target ? Math.round(parseFloat(target) * 100) : undefined;
       const r = await fetch("/api/suggestions", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, description, category, suburb: suburb || undefined, images, targetCents }),
+        body: JSON.stringify({
+          title, description, category, suburb: suburb || undefined, images, targetCents,
+          lat: lat ?? undefined, lng: lng ?? undefined, locationLabel: locationLabel || undefined,
+        }),
       });
       const j = await r.json();
       if (!r.ok) { setError(j.error === "not_authenticated" ? "Please sign in first." : j.error || "Couldn't submit."); return; }
@@ -140,6 +176,31 @@ export default function NewCausePage() {
                 inputMode="decimal" placeholder="2000"
                 className="w-full h-12 pl-12 pr-4 rounded-xl border border-border bg-white focus:outline-none focus:border-accent tabular" />
             </div>
+          </Field>
+
+          <Field label="Location (optional)">
+            <div className="flex gap-2">
+              <input
+                value={locationLabel}
+                onChange={(e) => setLocationLabel(e.target.value)}
+                placeholder="e.g. Bergamont St & Agave St, Elanora"
+                className="flex-1 h-12 px-4 rounded-xl border border-border bg-white focus:outline-none focus:border-accent"
+              />
+              <button type="button" onClick={geocode} disabled={geoBusy}
+                className="h-12 px-4 rounded-xl border border-border hover:border-accent text-sm inline-flex items-center gap-1.5 shrink-0">
+                <MapPin className="w-4 h-4" /> {geoBusy ? "Finding…" : "Find on map"}
+              </button>
+            </div>
+            <div className="mt-2 flex items-center gap-4 text-xs">
+              <button type="button" onClick={useMyLocation} className="text-accent hover:underline inline-flex items-center gap-1">
+                <LocateFixed className="w-3.5 h-3.5" /> Use my current location
+              </button>
+              {lat != null && lng != null && (
+                <button type="button" onClick={() => { setLat(null); setLng(null); }} className="text-muted hover:text-danger">Clear pin</button>
+              )}
+            </div>
+            {geoErr && <div className="text-xs text-danger mt-1">{geoErr}</div>}
+            {lat != null && lng != null && <CauseMap lat={lat} lng={lng} label={locationLabel} className="mt-3" />}
           </Field>
 
           <Field label="Photos (up to 3)">
