@@ -12,6 +12,7 @@ import {
   type MonthlyReport,
 } from "@/lib/data";
 import { CATEGORY_COLOURS } from "@/lib/types";
+import { fundSplit } from "@/lib/fund";
 
 const PROJECTS_BY_MONTH: Record<string, typeof MOCK_PROJECTS> = MOCK_PROJECTS.reduce((acc, p) => {
   const m = p.date.slice(0, 7);
@@ -25,6 +26,7 @@ export default function TransparencyPage() {
     fetch("/api/stats", { cache: "no-store" }).then((r) => r.json()).then(setStats).catch(() => {});
   }, []);
   const totalDeployed = stats.deployedCents;
+  const split = fundSplit(stats.raisedCents); // raisedCents = net (after fees)
 
   return (
     <main className="relative min-h-screen bg-cream">
@@ -35,8 +37,10 @@ export default function TransparencyPage() {
         <h1 className="text-5xl font-semibold tracking-tight">Every dollar, accounted for.</h1>
         <p className="mt-4 text-lg text-muted max-w-2xl">
           We publish every transaction. <strong className="text-ink">90% of every donation, after processing fees*</strong>,
-          funds local projects on the southern Gold Coast. <strong className="text-ink">10% covers running costs</strong> —
-          hosting, a part-time coordinator, the boring stuff — so we can keep building. Inspired by{" "}
+          goes to causes — your suburb&apos;s local projects plus the coast-wide{" "}
+          <Link href="/emergency" className="text-accent hover:underline">Emergency Fund</Link>. The other{" "}
+          <strong className="text-ink">10% covers running costs</strong> — hosting, a part-time coordinator, the boring
+          stuff — so we can keep building. Inspired by{" "}
           <a href="https://blog.ecosia.org/category/financial-reports/" target="_blank" rel="noreferrer" className="text-accent hover:underline">Ecosia's monthly receipts</a>.
         </p>
         <p className="mt-3 text-sm text-muted max-w-2xl">
@@ -47,9 +51,10 @@ export default function TransparencyPage() {
         </p>
 
         {/* Headline numbers */}
-        <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <Headline label="Account balance" value={formatAUD(stats.balanceCents)} sub="live bank feed" live />
           <Headline label="All-time raised" value={formatAUD(stats.raisedCents)} sub="from members" />
+          <Headline label="Emergency Fund" value={formatAUD(split.emergency)} sub="coast-wide safety net" />
           <Headline label="All-time deployed" value={formatAUD(totalDeployed)} sub="to projects" />
           <Headline label="People helped" value={String(stats.peopleHelped)} sub="directly" />
         </div>
@@ -58,12 +63,14 @@ export default function TransparencyPage() {
         <section className="mt-16">
           <h2 className="text-2xl font-semibold mb-4">Where your dollar goes</h2>
           <p className="text-muted mb-6 max-w-2xl">
-            Of every $1 received (after card processing): 90¢ funds local projects, 10¢ keeps the
-            lights on — hosting, the part-time coordinator, the boring stuff that lets us run. That's it.
+            Of every $1 received (after card processing): 10¢ keeps the lights on, then 10% of what&apos;s left is
+            set aside in the coast-wide <Link href="/emergency" className="text-accent hover:underline">Emergency Fund</Link>,
+            and the rest funds your suburb&apos;s local projects. So 90% still goes to causes.
           </p>
           <div className="bg-white border border-border rounded-card p-6 space-y-5">
-            <SplitBar label="Local projects (southern Gold Coast suburbs)" pct={90} color="#0E9F6E" right="90%" />
-            <SplitBar label="Operating costs (coordinator, hosting, fees)"  pct={10} color="#0EA5E9" right="10%" />
+            <SplitBar label="Local projects (your suburb's weekly vote)" pct={81} color="#0E9F6E" right={formatAUD(split.local)} />
+            <SplitBar label="Emergency Fund (coast-wide safety net)" pct={9} color="#E11D48" right={formatAUD(split.emergency)} />
+            <SplitBar label="Operating costs (coordinator, hosting, fees)" pct={10} color="#0EA5E9" right={formatAUD(split.runningCosts)} />
           </div>
           <p className="mt-4 text-xs text-muted">
             Heads up: Stripe takes its processing fee <em>before</em> this split — on a $1 weekly charge that's
