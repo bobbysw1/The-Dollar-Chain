@@ -4,6 +4,7 @@ import { SKIN_TONES, SHIRT_COLOURS, HAIR_COLOURS } from "./types";
 import { AUTO_ALLOCATE_CAUSE_ID } from "./causes";
 import { estimateStripeFeeCents } from "./fund";
 import { stripe, STRIPE_CONFIGURED } from "./stripe";
+import { grantCredit } from "./credits";
 
 const FILE = "members.json";
 
@@ -470,6 +471,11 @@ export async function reconcileMemberFromStripe(
     feeCents += bt && typeof bt !== "string" && typeof bt.fee === "number"
       ? bt.fee
       : estimateStripeFeeCents(paid);
+
+    // Grant vote credits for this invoice if the webhook never did (e.g. it
+    // arrived before this member existed). Idempotent on the invoice id, which
+    // the webhook also uses, so neither path can double-grant.
+    await grantCredit(number, inv.id, Math.floor(paid / 100));
   }
 
   await updateMember(number, { contributedCents, feeCents });
